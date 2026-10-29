@@ -1,0 +1,1380 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#10141d" />
+  <meta name="description" content="Kişisel Portföy ve Yatırım Takip Uygulaması" />
+  
+  <!-- PWA & iOS Meta Tags -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Yatırım Defterim" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <script>
+    try {
+      if (localStorage.getItem("yatirim-defterim-v1:sidebar-collapsed") === "1") {
+        document.documentElement.classList.add("sidebar-collapsed");
+      }
+    } catch (_) {}
+  </script>
+  
+  <title>Yatırım Defterim</title>
+  <link rel="stylesheet" href="styles-v14.17.css" />
+  <!-- SheetJS for Excel Import -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- PDF.js extracts text locally in the browser; statements are not uploaded. -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="appSidebar" aria-label="Ana menü">
+      <div class="brand"><span class="brand-mark">◔</span><span>Yatırım Defterim</span></div>
+      <p class="sidebar-caption" id="storageScopeCaption">Kişisel · Bu bilgisayarda</p>
+      <nav class="nav-list">
+        <button class="nav-item active" data-page="dashboard"><span>◈</span> Genel bakış</button>
+        <button class="nav-item" data-page="expenses"><span>◒</span> Harcamalar</button>
+        <button class="nav-item" data-page="decision"><span>◎</span> Karar merkezi</button>
+        <button class="nav-item" data-page="portfolio"><span>▦</span> Portföy</button>
+        <button class="nav-item" data-page="trendCheck"><span>↗</span> Trend Check</button>
+        <button class="nav-item" data-page="calendar"><span>□</span> Finansal takvim</button>
+        <button class="nav-item" data-page="watchlist"><span>☆</span> Takip listesi</button>
+        <button class="nav-item" data-page="closed"><span>✓</span> Kapanmış pozisyonlar</button>
+        <button class="nav-item" data-page="transactions"><span>⇄</span> İşlemler</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-page="settings"><span>⚙</span> Ayarlar</button>
+        <div id="localSystemStatus" class="local-status" role="status">
+          <span class="dot"></span>
+          <span id="localSystemStatusText">Yerel sistem doğrulanıyor</span>
+        </div>
+        <div class="app-version"><strong id="appVersion">v14.17</strong><span>Sade, güvenli ve erişilebilir</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="topbar-heading">
+          <button class="button secondary sidebar-toggle" id="sidebarToggle" type="button" aria-controls="appSidebar" aria-expanded="true" aria-label="Kenar çubuğunu gizle" title="Kenar çubuğunu gizle">
+            <span class="sidebar-toggle-icon" aria-hidden="true">←</span>
+            <span class="sidebar-toggle-label">Menüyü gizle</span>
+          </button>
+          <div class="topbar-title">
+            <p class="eyebrow" id="pageEyebrow">GENEL BAKIŞ</p>
+            <h1 id="pageTitle">Merhaba</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span id="fxRateDisplay" class="status-chip neutral">USD/TRY: —</span>
+          <button class="button secondary" id="pwaInstallBtn" type="button" style="display:none;">Ana ekrana ekle</button>
+          <button class="button secondary icon-text-button" id="themeToggle" type="button" aria-label="Temayı değiştir" title="Aydınlık veya karanlık tema"><span aria-hidden="true">◐</span><span>Tema</span></button>
+          <button class="button secondary icon-text-button" id="refreshButton" type="button"><span aria-hidden="true">↻</span><span>Yenile</span></button>
+        </div>
+      </header>
+
+      <section id="cloudImportGuide" class="cloud-import-guide" hidden aria-live="polite">
+        <div><strong>Portföyünü bu cihaza getir</strong><span>Bilgisayardaki uygulamadan aldığın JSON yedeğini bir kez seç. Sonraki değişiklikler telefon ve bilgisayar arasında otomatik eşitlenir.</span></div>
+        <button id="cloudImportButton" class="button primary" type="button">Yedeği içe aktar</button>
+      </section>
+
+      <section id="offlineQueueBanner" class="offline-queue-banner" hidden aria-live="polite">
+        <div>
+          <strong id="offlineQueueTitle">Bekleyen işlemler korunuyor</strong>
+          <span id="offlineQueueDetail">Bağlantı gelince oluşturulma sırasıyla buluta gönderilecek.</span>
+        </div>
+        <button id="offlineQueueRetryButton" class="button secondary small" type="button">Şimdi gönder</button>
+      </section>
+
+      <section id="demoBanner" class="demo-banner" hidden aria-live="polite">
+        <div><strong>Örnek portföy modu</strong><span>Bu ekrandaki işlemler ve başlangıç fiyatları örnektir; canlı yatırım verisi değildir.</span></div>
+        <button id="exitDemoButton" class="button secondary" type="button">Demodan çık</button>
+      </section>
+
+      <section id="dashboardPage" class="page active">
+        <section class="hero-card">
+          <div>
+            <p class="hero-kicker">TOPLAM PORTFÖY DEĞERİ</p>
+            <div class="hero-value hero-value-toggle" id="totalValue" role="button" tabindex="0" aria-label="Toplam portföy değeri; Türk lirası ve ABD doları arasında geçiş yapmak için tıklayın">—</div>
+            <p class="hero-detail" id="totalContext">İşlemler ve güncel fiyatlar hesaplanıyor</p>
+          </div>
+          <div class="hero-right">
+            <div class="hero-status-row" aria-label="Veri durumu">
+              <span id="quoteStatus" class="status-chip neutral">Fiyatlar hazırlanıyor</span>
+              <span id="cloudSyncStatus" class="status-chip neutral" hidden>Bulut denetleniyor</span>
+            </div>
+            <div class="market-time" id="marketTime">—</div>
+            <button class="button primary" id="addTransactionButton" type="button">＋ İşlem ekle</button>
+          </div>
+        </section>
+
+        <section class="panel executive-report-panel dashboard-optional">
+          <div class="panel-header">
+            <div>
+              <div class="executive-title-badge">
+                <h2>Aylık & Genel Portföy Özeti</h2>
+                <span class="status-chip live">Otomatik rapor</span>
+              </div>
+              <p id="executiveReportSubtitle">Son fiyatlar ve günlük performans kayıtlarına göre oluşturulmuş özet.</p>
+            </div>
+            <div class="panel-header-actions"><button class="button secondary small" id="aiReportRefreshBtn" type="button">Özeti yeniden hesapla</button><button class="button secondary small section-toggle" id="executiveReportToggle" type="button" aria-expanded="true">Gizle</button></div>
+          </div>
+          <div id="executiveReportContent" class="executive-report-content"></div>
+        </section>
+
+        <section class="foundation-strip dashboard-foundation" aria-labelledby="foundationTitle">
+          <div class="foundation-heading">
+            <div>
+              <p class="foundation-kicker">VERİ GÜVENİ</p>
+              <strong id="foundationTitle">Portföy altyapısı izleniyor</strong>
+            </div>
+            <span id="foundationStatusBadge" class="status-chip neutral">Kontrol ediliyor</span>
+          </div>
+          <div class="foundation-items">
+            <article class="foundation-item" id="ledgerHealthItem">
+              <span class="foundation-icon" aria-hidden="true">✓</span>
+              <div><strong id="ledgerHealthTitle">İşlem defteri</strong><p id="ledgerHealthDetail">Doğrulanıyor</p></div>
+            </article>
+            <article class="foundation-item" id="quoteHealthItem">
+              <span class="foundation-icon" aria-hidden="true">↻</span>
+              <div><strong id="quoteHealthTitle">Fiyat kapsamı</strong><p id="quoteHealthDetail">Doğrulanıyor</p></div>
+            </article>
+            <article class="foundation-item" id="backupHealthItem">
+              <span class="foundation-icon" aria-hidden="true">⛨</span>
+              <div><strong id="backupHealthTitle">Yerel yedek</strong><p id="backupHealthDetail">Doğrulanıyor</p></div>
+            </article>
+            <article class="foundation-item" id="historyHealthItem">
+              <span class="foundation-icon" aria-hidden="true">▥</span>
+              <div><strong id="historyHealthTitle">Performans geçmişi</strong><p id="historyHealthDetail">Doğrulanıyor</p></div>
+            </article>
+          </div>
+        </section>
+
+        <!-- AI & Otomatik Yönetici Rapor Kartı -->
+        <section class="metric-grid" aria-label="Portföy özeti">
+          <article class="metric-card"><p>Günlük fiyat etkisi <button class="metric-help" type="button" aria-label="Günlük fiyat etkisi açıklaması" title="Şu an eldeki adetlerin son günlük fiyat değişimiyle çarpımı. Gün içi alım/satım zamanını ve kur hareketini ölçmez; yatırım getirisi değildir.">i</button></p><strong id="dayChange">—</strong><span id="dayChangePct">—</span></article>
+          <article class="metric-card"><p>Gerçekleşmemiş K/Z <button class="metric-help" type="button" aria-label="Gerçekleşmemiş kâr zarar açıklaması" title="Açık pozisyonların güncel değeri ile maliyeti arasındaki fark.">i</button></p><strong id="totalPnl">—</strong><span id="totalPnlPct">—</span></article>
+          <article class="metric-card metric-card-highlight"><p>Toplam K/Z <button class="metric-help" type="button" aria-label="Toplam kâr zarar açıklaması" title="Açık pozisyonların gerçekleşmemiş K/Z değeri ile kapanmış pozisyonların gerçekleşmiş K/Z toplamı.">i</button></p><strong id="totalKarZarar">—</strong><span id="totalKarZararSub" class="trend-text">—</span></article>
+        </section>
+
+        <section class="panel daily-brief-panel" aria-labelledby="dailyBriefTitle">
+          <div class="panel-header"><div><p class="daily-brief-kicker">BUGÜN</p><h2 id="dailyBriefTitle">Ne değişti?</h2><p>Yalnızca dikkat etmeye değer hareketler.</p></div><button class="text-button" data-page-target="calendar" type="button">Takvime git →</button></div>
+          <div id="dailyBriefList" class="daily-brief-list" aria-live="polite"></div>
+        </section>
+
+        <div class="content-grid dashboard-grid">
+          <section class="panel portfolio-panel">
+            <div class="panel-header">
+              <div><h2>Pozisyonlar</h2><p id="portfolioSummary">—</p></div>
+              <button class="text-button" data-page-target="portfolio" type="button">Tümünü gör →</button>
+            </div>
+            <div class="allocation-track" id="allocationTrack" aria-label="Portföy dağılımı"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Varlık</th><th class="number">Adet</th><th class="number">Son fiyat</th><th class="number">Değer</th><th class="number">K/Z</th><th>İşlem</th></tr></thead>
+                <tbody id="portfolioTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel chart-panel">
+            <div class="panel-header performance-panel-header">
+              <div><h2>Portföyün durumu</h2><p>Güncel değer, geçen yıl kapanışı ve tüm zamanların zirvesi</p></div>
+              <span id="portfolioChartDuration" class="status-chip neutral">—</span>
+            </div>
+            <div class="performance-toolbar" aria-label="Performans grafiği seçenekleri">
+              <div class="chart-segmented" id="portfolioChartModeGroup" aria-label="Grafik türü">
+                <button class="badge-button active" data-chart-mode="value" type="button">Değer</button>
+                <button class="badge-button" data-chart-mode="return" type="button">Değişim %</button>
+              </div>
+              <div class="chart-segmented performance-range-group" id="portfolioChartRangeGroup" aria-label="Grafik dönemi">
+                <button class="badge-button" data-chart-range="1m" type="button">1 Ay</button>
+                <button class="badge-button" data-chart-range="3m" type="button">3 Ay</button>
+                <button class="badge-button" data-chart-range="6m" type="button">6 Ay</button>
+                <button class="badge-button" data-chart-range="ytd" type="button">YTD</button>
+                <button class="badge-button" data-chart-range="1y" type="button">1 Yıl</button>
+                <button class="badge-button active" data-chart-range="all" type="button">Tümü</button>
+              </div>
+            </div>
+            <div class="timeline-history-toolbar"><span id="performanceHistoryStatus" role="status" hidden></span><button id="completePerformanceHistory" class="button secondary small" type="button">Geçmişi tamamla</button></div>
+            <div class="performance-summary-grid" id="performanceSummary" aria-live="polite"></div>
+            <div class="performance-chart-wrap">
+              <svg id="portfolioChart" viewBox="0 0 640 280" role="img" tabindex="0" aria-label="Etkileşimli portföy performans grafiği"></svg>
+              <div id="portfolioChartTooltip" class="portfolio-chart-tooltip" hidden></div>
+            </div>
+            <div class="timeline-legend"><span><i class="legend-recorded"></i>Kayıtlı</span><span><i class="legend-calculated"></i>Tarihi verilerle hesaplanan</span></div>
+            <p class="panel-footnote" id="chartNote"></p>
+            <details class="daily-records"><summary>Günlük kayıtlar ve veri kaynakları</summary><p class="panel-footnote" id="performanceDataNote"></p>
+              <div class="table-wrap"><table><thead><tr><th>Tarih</th><th class="number">Portföy değeri</th><th class="number">Önceki güne göre</th><th class="number">İlk güne göre</th><th>Kaynak</th></tr></thead><tbody id="performanceDailyRows"></tbody></table></div>
+            </details>
+          </section>
+
+          <section class="panel profit-panel" aria-labelledby="profitTitle">
+            <div class="panel-header performance-panel-header">
+              <div><h2 id="profitTitle">Zamana göre kâr / zarar <button class="metric-help" type="button" aria-label="Kâr grafiği açıklaması" title="Her günün toplam kârı, o günün açık pozisyon kârı ile o tarihe kadar kapanmış pozisyonların kârının toplamıdır. Gelecekteki satışlar geçmiş günlere eklenmez. Eksik günler tarihi fiyatlarla, eksik kurlar o günün yayımlanmış kapanış kuruyla tamamlanır. Yeniden hesaplanan günler ayrı işaretlenir.">i</button></h2><p>Açık ve kapanmış pozisyonların toplam sonucu</p></div>
+              <span id="profitChartDuration" class="status-chip neutral">—</span>
+            </div>
+            <div class="chart-segmented profit-mode-group" aria-label="Kâr grafiği türü">
+              <button class="badge-button active" type="button" data-profit-mode="totalPnl">Toplam K/Z</button>
+              <button class="badge-button" type="button" data-profit-mode="unrealizedPnl">Açık pozisyonlar</button>
+              <button class="badge-button" type="button" data-profit-mode="realizedPnl">Kapanmış pozisyonlar</button>
+            </div>
+            <div id="profitSummary" class="performance-summary-grid" aria-live="polite"></div>
+            <div class="performance-chart-wrap">
+              <svg id="profitChart" viewBox="0 0 640 280" role="img" tabindex="0" aria-label="Zamana göre toplam kâr ve zarar grafiği"></svg>
+              <div id="profitChartTooltip" class="portfolio-chart-tooltip" hidden></div>
+            </div>
+            <div class="timeline-legend"><span><i class="legend-recorded"></i>Kayıtlı</span><span><i class="legend-calculated"></i>Tarihi verilerle hesaplanan</span></div>
+            <p id="profitChartNote" class="panel-footnote"></p>
+          </section>
+
+          <section class="panel quick-panel">
+            <div class="panel-header"><div><h2>Risk ve içgörüler</h2><p>Takip ve disiplin</p></div></div>
+            <ul class="insight-list" id="insightList"></ul>
+          </section>
+
+          <section class="panel benchmark-panel dashboard-optional">
+            <div class="panel-header">
+              <div>
+                <h2>Endeks karşılaştırması</h2>
+                <p id="benchmarkSubtitle">Portföy ölçümü ve endekslerin fiyat değişimi; yöntem ve para birimleri aşağıda açıklanır.</p>
+              </div>
+              <div class="benchmark-toggle" id="benchmarkTimeframeGroup">
+                <button class="badge-button active" data-period="1d" type="button">1 Gün</button>
+                <button class="badge-button" data-period="1m" type="button">1 Ay</button>
+                <button class="badge-button" data-period="3m" type="button">3 Ay</button>
+                <button class="badge-button" data-period="6m" type="button">6 Ay</button>
+                <button class="badge-button" data-period="ytd" type="button">YTD</button>
+                <button class="badge-button" data-period="1y" type="button">1 Yıl</button>
+              </div>
+              <button class="button secondary small section-toggle" id="benchmarkPanelToggle" type="button" aria-expanded="true">Gizle</button>
+            </div>
+            <div class="benchmark-grid" id="benchmarkGrid"></div>
+            <div class="benchmark-chart-container">
+              <div class="benchmark-chart-legend">
+                <span class="legend-item"><span class="legend-dot user"></span> Portföyüm</span>
+                <span class="legend-item"><span class="legend-dot xu100"></span> BIST 100</span>
+                <span class="legend-item"><span class="legend-dot sp500"></span> S&P 500</span>
+              </div>
+              <svg id="benchmarkChart" viewBox="0 0 540 180" role="img" aria-label="Endeks karşılaştırma grafiği"></svg>
+            </div>
+          </section>
+
+          <section class="panel etf-market-panel" aria-labelledby="etfMarketTitle">
+            <div class="panel-header etf-market-header">
+              <div>
+                <p class="panel-eyebrow">PİYASA NABZI</p>
+                <h2 id="etfMarketTitle">ETF fiyatları ve hareketli ortalamalar</h2>
+                <p>SPY, QQQ ve SMH · son 60 işlem seansı · 10/21/50/200 günlük ortalamalar</p>
+              </div>
+              <button class="button secondary small" id="refreshEtfMarketButton" type="button">↻ ETF verilerini yenile</button>
+            </div>
+            <div id="etfMarketStatus" class="etf-market-status" role="status" aria-live="polite"></div>
+            <div id="etfMarketGrid" class="etf-market-grid"></div>
+          </section>
+
+          <section class="panel allocation-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Dağılım</h2>
+                <p id="allocationSubtitle">Ağırlık ve varlık dağılımı</p>
+              </div>
+              <div class="allocation-toggle-group" id="allocationModeGroup">
+                <button class="badge-button active" data-alloc-mode="assetClass" type="button">Varlık Sınıfı</button>
+                <button class="badge-button" data-alloc-mode="sector" type="button">Sektör</button>
+                <button class="badge-button" data-alloc-mode="currency" type="button">Para Birimi</button>
+              </div>
+            </div>
+            <div class="allocation-body">
+              <div class="allocation-chart-container">
+                <svg id="allocationPieSvg" viewBox="0 0 200 200" role="img" aria-label="Portföy pasta grafiği"></svg>
+                <div class="allocation-pie-center" id="allocationPieCenter">
+                  <span class="pie-center-val" id="allocCenterVal">—</span>
+                  <span class="pie-center-lbl" id="allocCenterLbl">Toplam Portföy</span>
+                </div>
+              </div>
+              <div id="allocationList" class="allocation-list-v2"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="portfolioPage" class="page">
+        <section class="panel full-panel">
+          <div class="panel-header"><div><h2>Pozisyonlar</h2><p>Maliyet, güncel değer ve gerçekleşmemiş kâr/zarar</p></div><div class="portfolio-page-actions"><button class="button secondary" data-page-target="dashboard" type="button">← Genel bakış</button><span id="portfolioPageMeta" class="status-chip neutral">—</span><details class="page-actions-menu"><summary class="button secondary" aria-label="Portföy işlemleri" title="Portföy işlemleri">•••</summary><div class="page-actions-popover"><button class="menu-action danger-text" id="openDangerZoneButton" type="button">Tehlikeli işlemler</button></div></details></div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Varlık</th><th>Piyasa</th><th class="number">Adet</th><th class="number">Ort. maliyet</th><th class="number">Son fiyat</th><th class="number">Piyasa değeri</th><th class="number">K/Z</th><th>İşlem</th></tr></thead>
+            <tbody id="portfolioFullTable"></tbody>
+          </table></div>
+        </section>
+      </section>
+
+      <section id="decisionPage" class="page">
+        <div class="decision-center-shell">
+          <section class="panel decision-overview-panel" aria-labelledby="decisionCenterTitle">
+            <div class="decision-overview-copy">
+              <p class="decision-kicker">KARAR MERKEZİ</p>
+              <h2 id="decisionCenterTitle">Paranı ve yatırım tezlerini aynı planda yönet</h2>
+              <p>Aylık gelir ve giderlerinle yatırım bütçeni planla; hisselerini fiyatla değil, satın alma gerekçenle takip et.</p>
+            </div>
+            <div class="decision-overview-grid">
+              <article class="decision-hero-metric primary"><span>Bu ay planlanan yatırım bütçesi</span><strong id="safeInvestmentAmount">—</strong><small id="safeInvestmentCaption">Gelir bilgisi bekleniyor</small></article>
+              <article class="decision-hero-metric"><span>Nakit tamponu</span><strong id="cashBufferCoverage">—</strong><small id="cashBufferCaption">Hedef belirlenmedi</small></article>
+              <article class="decision-hero-metric"><span>Tez takibi</span><strong id="thesisReviewCount">0</strong><small id="thesisReviewCaption">Kayıtlı tez yok</small></article>
+            </div>
+          </section>
+
+          <div class="decision-workspace-grid">
+            <section class="panel budget-planner-panel" aria-labelledby="budgetPlannerTitle">
+              <div class="panel-header"><div><p class="decision-section-kicker">AYLIK PLAN</p><h2 id="budgetPlannerTitle">Yatırım bütçesi planı</h2><p>Ekstre ortalaman, yaklaşan kart ödemen ve nakit tamponun birlikte hesaplanır.</p></div><span id="budgetStatusBadge" class="status-chip neutral">Kurulum bekliyor</span></div>
+              <form id="investmentBudgetForm" class="decision-form budget-form">
+                <label>Aylık net gelir<input id="budgetMonthlyIncome" type="number" min="0" step="100" inputmode="decimal" required placeholder="₺" /></label>
+                <label>Beklenen kart ödemesi <span class="optional-label">(0 = otomatik)</span><input id="budgetCardPayment" type="number" min="0" step="100" inputmode="decimal" placeholder="₺" /><small id="budgetCardEstimate">Ekstrelerden otomatik tahmin edilir.</small></label>
+                <label>Kart dışı zorunlu ödemeler<input id="budgetFixedObligations" type="number" min="0" step="100" inputmode="decimal" placeholder="Kira, kredi, fatura…" /></label>
+                <label>Mevcut likit nakit<input id="budgetCashBalance" type="number" min="0" step="100" inputmode="decimal" placeholder="₺" /></label>
+                <label>Hedef nakit tamponu<select id="budgetBufferMonths"><option value="2">2 aylık gider</option><option value="3" selected>3 aylık gider</option><option value="6">6 aylık gider</option><option value="9">9 aylık gider</option><option value="12">12 aylık gider</option></select></label>
+                <label>Ek güvenlik payı<input id="budgetSafetyMargin" type="number" min="0" max="50" step="1" inputmode="decimal" value="10" /><small>Aylık fazlanın yatırım dışında tutulan yüzdesi.</small></label>
+                <button class="button primary" type="submit">Bütçeyi hesapla ve kaydet</button>
+              </form>
+              <div class="budget-breakdown" aria-live="polite">
+                <div><span>Ekstrelerden kişisel gider ortalaması</span><strong id="budgetExpenseBaseline">—</strong></div>
+                <div><span>Bu ay kullanılacak kart ödemesi</span><strong id="budgetCardUsed">—</strong></div>
+                <div><span>Nakit tamponuna ayrılan</span><strong id="budgetReserveContribution">—</strong></div>
+                <div><span>Ek güvenlik payı</span><strong id="budgetSafetyHold">—</strong></div>
+              </div>
+              <p class="decision-disclaimer">Plan, tampon açığının altıda birini bu ay ayırır; kalan bütçe girdiğin giderlere bağlıdır ve güvenli harcama sınırı değildir; yatırım getirisi veya gelir garantisi değildir.</p>
+            </section>
+
+            <section class="panel thesis-editor-panel" aria-labelledby="thesisEditorTitle">
+              <div class="panel-header"><div><p class="decision-section-kicker">HİSSE KARNESİ</p><h2 id="thesisEditorTitle">Yatırım tezini kaydet</h2><p>Bilanço sonrasında fiyatı değil, ilk gerekçeni yeniden değerlendir.</p></div><span id="thesisEditorMode" class="status-chip neutral">Yeni tez</span></div>
+              <form id="stockThesisForm" class="decision-form thesis-form">
+                <label>Hisse<select id="thesisSymbol" required><option value="">Pozisyon seç</option></select></label>
+                <label class="form-span-2">Neden sahibim?<textarea id="thesisText" maxlength="1200" required placeholder="Şirketi taşıma gerekçeni birkaç açık cümleyle yaz."></textarea></label>
+                <label class="form-span-2">Tezi güçlendirecek gelişmeler<textarea id="thesisCatalysts" maxlength="800" placeholder="Büyüme, marj, borç azalması, yeni pazar…"></textarea></label>
+                <label class="form-span-2">Tezi bozan koşul<textarea id="thesisInvalidation" maxlength="800" required placeholder="Hangi somut gelişme olursa yatırım gerekçen geçersiz olur?"></textarea></label>
+                <label>Sonraki inceleme tarihi<input id="thesisReviewDate" type="date" required /></label>
+                <label>Tez durumu<select id="thesisStatus"><option value="pending">Henüz değerlendirilmedi</option><option value="stronger">Güçlendi</option><option value="same">Değişmedi</option><option value="broken">Bozuldu</option></select></label>
+                <label class="form-span-2">Bilanço sonrası not <span class="optional-label">(isteğe bağlı)</span><textarea id="thesisReviewNote" maxlength="800" placeholder="Beklentin neydi, gerçekleşen sonuç ne oldu?"></textarea></label>
+                <div class="thesis-form-actions form-span-2"><button class="button primary" type="submit">Tezi kaydet</button><button id="cancelThesisEdit" class="button secondary" type="button" hidden>Vazgeç</button></div>
+              </form>
+              <p class="decision-disclaimer">Finansal takvime sembollü bir bilanço tarihi eklersen, tarih geçtiğinde tez incelemesi otomatik hatırlatılır.</p>
+            </section>
+          </div>
+
+          <section class="panel thesis-board-panel" aria-labelledby="thesisBoardTitle">
+            <div class="panel-header"><div><h2 id="thesisBoardTitle">Hisse karnelerin</h2><p>Aktif pozisyonların, tez durumu ve son değerlendirme geçmişi.</p></div><div class="thesis-summary-chips"><span id="thesisTrackedBadge" class="status-chip neutral">0 takip</span><span id="thesisDueBadge" class="status-chip neutral">0 inceleme</span></div></div>
+            <div id="stockThesisList" class="stock-thesis-list" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="trendCheckPage" class="page">
+        <div class="trend-check-shell">
+          <section class="panel trend-check-input-panel">
+            <div class="panel-header trend-check-heading">
+              <div>
+                <p class="trend-check-kicker">TREND + ÇIKIŞ PLANI</p>
+                <h2>Trend Check</h2>
+                <p>Trendin dayanıklılığını ve savunma çizgisini tek raporda gör.</p>
+              </div>
+              <span class="status-chip neutral">Eğitim aracı</span>
+            </div>
+
+            <form id="trendCheckForm" class="trend-check-form">
+              <label>Hisse kodu<input id="trendCheckSymbol" type="text" maxlength="24" required placeholder="NVDA veya THYAO" autocomplete="off" /></label>
+              <label>Piyasa<select id="trendCheckMarket"><option value="ABD" selected>ABD / Yabancı</option><option value="BIST">BİST</option></select></label>
+              <label>Vade<select id="trendCheckStrategy"><option value="short">Kısa vade</option><option value="swing" selected>Swing</option><option value="position">Pozisyon</option></select></label>
+              <label>Maliyetin <span class="optional-label">(isteğe bağlı)</span><input id="trendCheckCost" type="number" min="0" step="any" inputmode="decimal" placeholder="—" /></label>
+              <button id="trendCheckSubmit" class="button primary" type="submit">Raporu üret</button>
+            </form>
+
+            <div id="trendCheckQuickSymbols" class="trend-check-quick" hidden></div>
+            <p class="trend-check-disclaimer">Chandelier savunma çizgisi, ATR ve hareketli ortalamalar kullanılır. Sonuçlar yatırım tavsiyesi veya alım-satım sinyali değildir.</p>
+          </section>
+
+          <section id="trendCheckResult" class="trend-check-result" aria-live="polite">
+            <div class="trend-check-empty">
+              <span aria-hidden="true">↗</span>
+              <strong>Bir hisse seçerek trend raporunu oluştur.</strong>
+              <p>Güncel fiyatın savunma çizgisine uzaklığını, trend skorunu ve teknik dayanakları birlikte göreceksin.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="calendarPage" class="page">
+        <div class="financial-calendar-layout">
+          <section class="panel financial-calendar-panel" aria-labelledby="financialCalendarTitle">
+            <div class="calendar-toolbar">
+              <div><p class="calendar-kicker">FİNANSAL TAKVİM</p><h2 id="financialCalendarTitle">Şirket tarihlerin otomatik takipte</h2><p>Portföy ve takip listesindeki şirketlerin bilanço takvimi internetten alınır.</p></div>
+              <div class="calendar-controls">
+                <button class="icon-button" type="button" data-calendar-shift="-1" aria-label="Önceki ay">←</button>
+                <strong id="calendarMonthLabel">—</strong>
+                <button class="icon-button" type="button" data-calendar-shift="1" aria-label="Sonraki ay">→</button>
+                <button class="button secondary small" type="button" data-calendar-today>Bugün</button>
+              </div>
+            </div>
+            <div class="calendar-sync-strip" aria-live="polite">
+              <div><strong id="calendarAutoStatus" class="calendar-sync-status">Otomatik takvim hazırlanıyor</strong><small id="calendarAutoNote">Yalnızca portföy ve takip listesindeki ABD hisselerinin tahmini bilanço tarihleri gösterilir.</small></div>
+              <button class="button secondary small" type="button" data-calendar-refresh>İnternetten yenile</button>
+            </div>
+            <div id="calendarNextEvents" class="calendar-next-events" aria-label="Sıradaki şirket tarihleri"></div>
+            <div class="calendar-weekdays" aria-hidden="true"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>
+            <div id="financialCalendarGrid" class="financial-calendar-grid" role="grid" aria-label="Aylık finansal takvim"></div>
+            <div class="calendar-legend"><span class="earnings">Bilanço</span><span class="dividend">Temettü</span><span class="card">Kart</span><span class="portfolio">Portföy</span></div>
+          </section>
+
+          <aside class="calendar-side">
+            <section class="panel calendar-upcoming-panel">
+              <div class="panel-header"><div><h2>Yaklaşanlar</h2><p>ABD bilançoları: önümüzdeki 45 gün.</p></div><span id="calendarUpcomingCount" class="status-chip neutral">0 olay</span></div>
+              <div id="calendarUpcomingList" class="calendar-upcoming-list"></div>
+            </section>
+            <section class="panel calendar-add-panel">
+              <div class="panel-header"><div><h2>Kişisel tarih ekle</h2><p>Kart ödemesi veya kendi notun için tarih oluştur.</p></div></div>
+              <form id="calendarEventForm" class="calendar-event-form">
+                <label>Başlık<input id="calendarEventTitle" type="text" maxlength="120" required placeholder="Örn. Kredi kartı son ödeme" autocomplete="off" /></label>
+                <div class="calendar-form-row">
+                  <label>Tarih<input id="calendarEventDate" type="date" required /></label>
+                  <label>Tür<select id="calendarEventType"><option value="earnings">Bilanço</option><option value="dividend">Temettü</option><option value="card">Kart ödemesi</option><option value="portfolio">Portföy notu</option><option value="other">Diğer</option></select></label>
+                </div>
+                <div class="calendar-form-row">
+                  <label>Sembol <span class="optional-label">(isteğe bağlı)</span><input id="calendarEventSymbol" type="text" maxlength="24" placeholder="NVDA veya THYAO" autocomplete="off" /></label>
+                  <label>Tekrar<select id="calendarEventRepeat"><option value="none">Tek sefer</option><option value="monthly">Her ay</option><option value="yearly">Her yıl</option></select></label>
+                </div>
+                <button class="button primary" type="submit">Takvime ekle</button>
+              </form>
+              <p class="calendar-auto-note">Şirket bilançoları ve işlem defterindeki temettüler otomatik gösterilir; bunları elle girmene gerek yoktur.</p>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+
+      <section id="watchlistPage" class="page">
+        <section class="panel watchlist-panel">
+          <div class="panel-header">
+            <div><h2>Takip listesi</h2><p>Portföyünde olmayan hisseleri fiyat ve teknik görünüm için izle.</p></div>
+            <span id="watchlistPageMeta" class="status-chip neutral">0 izlenen hisse</span>
+          </div>
+          <form id="watchlistForm" class="watchlist-form">
+            <label>Piyasa<select id="watchlistMarket"><option value="ABD" selected>ABD / Yabancı</option><option value="BIST">BİST</option></select></label>
+            <label>Hisse kodu<input id="watchlistSymbol" type="text" maxlength="24" required placeholder="Örn. NVDA veya THYAO" autocomplete="off" /></label>
+            <label>Şirket adı <span class="optional-label">(isteğe bağlı)</span><input id="watchlistName" type="text" maxlength="80" placeholder="Örn. NVIDIA" autocomplete="off" /></label>
+            <button class="button primary" type="submit">＋ Takibe ekle</button>
+          </form>
+          <p class="watchlist-help">BİST kodlarına <strong>.IS</strong> uzantısı otomatik eklenir. Satın alma işlemi oluşturulmaz; takip listen özel bulut hesabında cihazların arasında eşitlenir.</p>
+          <div class="table-wrap watchlist-table-wrap"><table>
+            <thead><tr><th>Varlık</th><th class="number">Son fiyat</th><th class="number">Günlük değişim</th><th>Durum</th><th>Fiyat bilgisi</th><th>İşlem</th></tr></thead>
+            <tbody id="watchlistTable"></tbody>
+          </table></div>
+        </section>
+      </section>
+
+
+      <section id="closedPage" class="page">
+        <section class="panel full-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Kapanmış Pozisyonlar (İşlem Geçmişi)</h2>
+              <p id="closedPageMeta">Gerçekleşen kâr/zarar ve kapanmış satımların özeti</p>
+            </div>
+            <div class="closed-page-actions">
+              <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display:none;" />
+              <button class="button secondary" id="importExcelBtn" type="button">Excel/CSV içe aktar</button>
+              <button class="button primary" id="addClosedPosBtn" type="button">＋ Kapanmış Pozisyon Ekle</button>
+              <details class="page-actions-menu"><summary class="button secondary" aria-label="Kapanmış pozisyon işlemleri">•••</summary><div class="page-actions-popover"><button class="menu-action danger-text" id="clearAllClosedBtn" type="button" onclick="clearAllClosedPositions()">Elle eklenenleri sil</button></div></details>
+            </div>
+          </div>
+
+          <!-- Özet Metrik Kartları -->
+          <div class="closed-metrics-grid">
+            <div class="exec-mini-card">
+              <div class="exec-card-lbl">Toplam Kâr (TRY)</div>
+              <div class="exec-card-val" id="closedTotalPnlCombined">—</div>
+              <div class="exec-card-sub">Tüm Pozisyonlar Toplamı</div>
+            </div>
+            <div class="exec-mini-card">
+              <div class="exec-card-lbl">Gerçekleşen Net K/Z (TRY)</div>
+              <div class="exec-card-val" id="closedTotalPnlTry">—</div>
+              <div class="exec-card-sub" id="closedPnlTrySub">TL Pozisyonları</div>
+            </div>
+            <div class="exec-mini-card">
+              <div class="exec-card-lbl">Gerçekleşen Net K/Z (USD)</div>
+              <div class="exec-card-val" id="closedTotalPnlUsd">—</div>
+              <div class="exec-card-sub" id="closedPnlUsdSub">ABD Pozisyonları</div>
+            </div>
+            <div class="exec-mini-card">
+              <div class="exec-card-lbl">Ortalama Getiri (%)</div>
+              <div class="exec-card-val" id="closedAvgReturn">—</div>
+              <div class="exec-card-sub" id="closedCountSub">0 Kapanmış İşlem</div>
+            </div>
+            <div class="exec-mini-card">
+              <div class="exec-card-lbl">En Kârlı / En Zararlı</div>
+              <div class="exec-card-val" style="font-size: 12px; line-height: 1.3;" id="closedBestWorst">—</div>
+              <div class="exec-card-sub">Sembol Bazında Toplam</div>
+            </div>
+          </div>
+
+          <!-- Filtre ve Sıralama Barı -->
+          <div class="closed-filter-bar">
+            <input type="text" id="closedSearchInput" placeholder="Sembol veya ada göre ara..." class="closed-search-input" />
+            <select id="closedFilterType">
+              <option value="all">Tüm Pozisyonlar</option>
+              <option value="profit">Yalnızca kârlılar</option>
+              <option value="loss">Yalnızca zararlılar</option>
+              <option value="TRY">₺ Yalnızca TRY</option>
+              <option value="USD">$ Yalnızca USD</option>
+            </select>
+            <select id="closedSortBy">
+              <option value="sellDateDesc">Satış Tarihi (En Yeni)</option>
+              <option value="sellDateAsc">Satış Tarihi (En Eski)</option>
+              <option value="profitDesc">Kâr/Zarar (En Yüksek)</option>
+              <option value="profitAsc">Kâr/Zarar (En Düşük)</option>
+              <option value="pctDesc">Getiri % (En Yüksek)</option>
+              <option value="symbol">Sembol (A-Z)</option>
+            </select>
+            <div class="closed-selection-tools">
+              <button class="button small secondary" id="closedSelectVisibleButton" type="button">Görünenleri seç</button>
+              <select id="closedQuickSelect" aria-label="Hızlı kayıt seçimi">
+                <option value="">Hızlı seçim…</option>
+                <option value="profit">Kârlı işlemleri seç</option>
+                <option value="loss">Zararlı işlemleri seç</option>
+                <option value="thisMonth">Bu ay satılanları seç</option>
+              </select>
+              <button class="button small ghost" id="closedClearSelectionButton" type="button" disabled>Seçimi temizle</button>
+            </div>
+          </div>
+
+          <!-- Kapanmış Pozisyonlar Tablosu -->
+          <div class="table-wrap closed-table-wrap">
+            <table class="closed-positions-table">
+              <thead>
+                <tr>
+                  <th class="closed-select-heading"><input id="closedSelectAllCheckbox" type="checkbox" aria-label="Görünen kapanmış işlemlerin tümünü seç" /></th>
+                  <th>Sembol / Varlık</th>
+                  <th>Alış Tarihi</th>
+                  <th>Satış Tarihi</th>
+                  <th class="number">Lot (Adet)</th>
+                  <th class="number">Alış Fiyatı</th>
+                  <th class="number">Satış Fiyatı</th>
+                  <th class="number">Güncel Fiyat</th>
+                  <th class="number">Toplam Maliyet</th>
+                  <th class="number">Toplam Gelir</th>
+                  <th class="number">Gerçekleşen K/Z</th>
+                  <th class="number">Getiri %</th>
+                  <th class="number">Elde Tutma</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="closedPositionsTable"></tbody>
+            </table>
+          </div>
+
+          <section class="closed-selection-bar" id="closedSelectionBar" hidden aria-live="polite">
+            <div class="closed-selection-heading-row">
+              <div>
+                <strong id="closedSelectionCount">0 işlem seçildi</strong>
+                <span id="closedSelectionContext">Özgün kayıtlar üzerinden hesaplanır</span>
+              </div>
+              <div class="closed-selection-actions">
+                <button class="button small secondary" id="closedSelectionChartButton" type="button">Karşılaştır</button>
+                <button class="button small secondary" id="closedExportSelectionButton" type="button">Seçileni CSV’ye aktar</button>
+                <button class="button small ghost" id="closedClearSelectionBarButton" type="button">Temizle</button>
+              </div>
+            </div>
+            <div class="closed-selection-metrics">
+              <div><span>Maliyet</span><strong id="closedSelectionCost">—</strong></div>
+              <div><span>Satış geliri</span><strong id="closedSelectionRevenue">—</strong></div>
+              <div><span>Gerçekleşen K/Z</span><strong id="closedSelectionProfit">—</strong></div>
+              <div><span>Ağırlıklı getiri</span><strong id="closedSelectionReturn">—</strong></div>
+              <div><span>Komisyon + aile payı</span><strong id="closedSelectionDeductions">—</strong></div>
+              <div><span>Lot</span><strong id="closedSelectionLot">—</strong></div>
+            </div>
+            <div class="closed-selection-currency" id="closedSelectionCurrencyBreakdown"></div>
+            <div class="closed-selection-chart" id="closedSelectionChart" hidden></div>
+          </section>
+        </section>
+      </section>
+
+      <section id="transactionsPage" class="page">
+        <section class="panel full-panel">
+          <div class="panel-header"><div><h2>İşlem defteri</h2><p>Portföy hesaplamalarının tek doğruluk kaynağı</p></div><button id="exportButton" class="button secondary" type="button">CSV dışa aktar</button></div>
+          <div class="table-responsive"><table class="data-table">
+            <thead><tr><th>Tarih</th><th>İşlem</th><th>Sembol</th><th class="number">Adet</th><th class="number">Birim fiyat</th><th class="number">Komisyon</th><th class="number">Kâr paylaşımı</th><th class="number">Kişisel net tutar</th><th></th></tr></thead>
+            <tbody id="transactionTable"></tbody>
+          </table></div>
+        </section>
+      </section>
+
+      <section id="expensesPage" class="page">
+        <div class="expense-summary-grid" aria-label="Aylık harcama özeti">
+          <article class="expense-summary-card total">
+            <div class="expense-card-label"><span>Seçili ay</span><span class="expense-card-icon" aria-hidden="true">Σ</span></div>
+            <strong id="expenseMonthTotal">₺0</strong>
+            <small id="expenseMonthTotalNote">Henüz harcama yok</small>
+          </article>
+          <article class="expense-summary-card personal">
+            <div class="expense-card-label"><span>Benim harcamam</span><span class="expense-card-icon" aria-hidden="true">●</span></div>
+            <strong id="expensePersonalTotal">₺0</strong>
+            <small id="expensePersonalShare">Toplamın %0'ı</small>
+          </article>
+          <article class="expense-summary-card family">
+            <div class="expense-card-label"><span>Aile harcaması</span><span class="expense-card-icon" aria-hidden="true">◆</span></div>
+            <strong id="expenseFamilyTotal">₺0</strong>
+            <small id="expenseFamilyShare">Toplamın %0'ı</small>
+          </article>
+          <article class="expense-summary-card average">
+            <div class="expense-card-label"><span>Aylık kişisel ortalama</span><span class="expense-card-icon" aria-hidden="true">≈</span></div>
+            <strong id="expensePersonalAverage">₺0</strong>
+            <small id="expenseAverageNote">Kayıtlı ay bekleniyor</small>
+          </article>
+        </div>
+
+        <div class="expense-workspace-grid">
+          <section class="panel expense-import-panel" aria-labelledby="expenseImportTitle">
+            <div class="panel-header">
+              <div><h2 id="expenseImportTitle">Ekstreyi içe aktar</h2><p>PDF, Excel, CSV veya metin dosyasındaki kart harcamalarını otomatik bulur.</p></div>
+              <span class="privacy-badge">Cihazında işlenir</span>
+            </div>
+            <label class="expense-dropzone" id="expenseDropzone" for="expenseStatementInput" tabindex="0">
+              <input id="expenseStatementInput" type="file" accept=".pdf,.csv,.txt,.xlsx,.xls,application/pdf,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+              <span class="expense-upload-icon" aria-hidden="true">⇧</span>
+              <span><strong>Ekstre seç veya buraya bırak</strong><small>Banka ekstresindeki tarih, işyeri ve tutar alanları otomatik çıkarılır.</small></span>
+              <span class="button primary expense-upload-button">Dosya seç</span>
+            </label>
+            <div id="expenseImportStatus" class="expense-import-status" role="status" aria-live="polite">Ekstre bekleniyor</div>
+          </section>
+
+          <section class="panel expense-trend-panel" aria-labelledby="expenseTrendTitle">
+            <div class="panel-header">
+              <div><h2 id="expenseTrendTitle">6 aylık görünüm</h2><p>Kişisel ve aile harcamalarının aylara göre dağılımı.</p></div>
+              <div class="expense-legend" aria-label="Grafik açıklaması"><span class="personal">Benim</span><span class="family">Aile</span></div>
+            </div>
+            <div id="expenseTrendChart" class="expense-trend-chart" aria-label="Son altı ayın harcama grafiği"></div>
+          </section>
+        </div>
+
+        <section class="panel expense-anomaly-panel" aria-labelledby="expenseAnomalyTitle">
+          <div class="panel-header"><div><h2 id="expenseAnomalyTitle">Akıllı harcama kontrolü</h2><p>Normalden yüksek tutarlar, düzenli ödemeler ve kategori sıçramaları.</p></div><span id="expenseAnomalyCount" class="status-chip neutral">Analiz ediliyor</span></div>
+          <div id="expenseAnomalyList" class="expense-anomaly-list" aria-live="polite"></div>
+        </section>
+
+        <section class="panel expense-ledger-panel" aria-labelledby="expenseLedgerTitle">
+          <div class="expense-ledger-heading">
+            <div><h2 id="expenseLedgerTitle">Harcama listesi</h2><p>Bir harcamanın aileye ait olduğunu satırdaki Aile seçeneğine dokunarak işaretle.</p></div>
+            <label class="expense-month-control"><span>Ay</span><input id="expenseMonthPicker" type="month" /></label>
+          </div>
+          <div class="expense-toolbar">
+            <div class="expense-filter-group" id="expenseFilterGroup" aria-label="Harcama sahibi filtresi">
+              <button class="badge-button active" type="button" data-expense-filter="all" aria-pressed="true">Tümü</button>
+              <button class="badge-button" type="button" data-expense-filter="personal" aria-pressed="false">Benim</button>
+              <button class="badge-button" type="button" data-expense-filter="family" aria-pressed="false">Aile</button>
+            </div>
+            <span id="expenseRowCount" class="status-chip neutral">0 kayıt</span>
+          </div>
+          <div class="table-responsive expense-table-wrap">
+            <table class="expense-table">
+              <thead><tr><th>Aile</th><th>Tarih</th><th>Harcama</th><th>Kategori</th><th class="number">Tutar</th><th></th></tr></thead>
+              <tbody id="expenseTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="settingsPage" class="page">
+        <div class="settings-layout">
+          <section class="panel system-health-panel" aria-labelledby="systemHealthTitle">
+            <div class="panel-header">
+              <div><h2 id="systemHealthTitle">Altyapı ve veri sağlığı</h2><p>Hesap motoru, bulut hizmeti, yedek ve depolama durumunun tek ekranda özeti.</p></div>
+              <span id="settingsHealthBadge" class="status-chip neutral">Kontrol ediliyor</span>
+            </div>
+            <div class="system-diagnostics-grid">
+              <article><span>Uygulama hizmeti</span><strong id="systemServerValue">Doğrulanıyor</strong><small id="systemServerDetail">—</small></article>
+              <article><span>İşlem defteri</span><strong id="systemLedgerValue">Doğrulanıyor</strong><small id="systemLedgerDetail">—</small></article>
+              <article><span>Otomatik yedek</span><strong id="systemBackupValue">Doğrulanıyor</strong><small id="systemBackupDetail">—</small></article>
+              <article><span>Tarayıcı depolaması</span><strong id="systemStorageValue">Doğrulanıyor</strong><small id="systemStorageDetail">—</small></article>
+            </div>
+            <div class="system-health-actions">
+              <button id="runHealthCheckButton" class="button secondary" type="button">↻ Durumu yeniden denetle</button>
+              <span id="systemHealthCheckedAt">Henüz denetlenmedi</span>
+            </div>
+          </section>
+          <section class="panel sec-settings-panel">
+            <div class="panel-header">
+              <div><h2>SEC EDGAR erişimi</h2><p>Resmî finansal veriler için SEC'in tanımlı otomatik erişim kuralını tamamla.</p></div>
+              <span id="secContactBadge" class="status-badge inactive">Kontrol ediliyor</span>
+            </div>
+            <label>İletişim e-postası
+              <input id="secContactEmailInput" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="ornek@eposta.com" />
+            </label>
+            <p class="settings-help">SEC, otomatik isteklerin User-Agent başlığında uygulama adı ve iletişim e-postası ister. ChatGPT hesabındaki izinli e-posta varsayılan olarak kullanılır; burada farklı bir iletişim adresi belirleyebilirsin.</p>
+            <button id="saveSecSettingsButton" class="button primary" type="button" style="margin-top:10px">SEC erişimini yapılandır</button>
+            <div id="secSettingsStatus" class="ai-settings-status"></div>
+          </section>
+          <section class="panel"><div class="panel-header"><div><h2>Görünüm ve para birimi</h2><p>Toplamları hangi para biriminde görmek istediğini seç.</p></div></div>
+            <label>Kullanıcı adı<input id="usernameInput" type="text" maxlength="80" autocomplete="nickname" placeholder="Kullanıcı adın" /></label><p class="settings-help">Karşılamada kullanılacak adın. Saat dilimi cihazının yerel saatine göre belirlenir.</p>
+            <label>Temel para birimi<select id="baseCurrencySelect"><option value="TRY">Türk lirası (TRY)</option><option value="USD">ABD doları (USD)</option></select></label>
+            <label>USD/TRY kuru<input id="fxRateInput" type="number" min="0.0001" step="0.0001" /></label>
+            <label>EUR/TRY kuru (EUR harcaması varsa)<input id="eurFxRateInput" type="number" min="0.0001" step="0.0001" placeholder="Euro kuru" /></label>
+            <button id="saveSettingsButton" class="button primary" type="button" style="margin-top:10px">Ayarları kaydet</button>
+          </section>
+          <section class="panel market-health-panel"><div class="panel-header"><div><h2>Fiyat güncelleme</h2><p>Kaynak geçişi ve son başarılı fiyat durumu.</p></div><span id="marketHealthBadge" class="status-badge inactive">Bekleniyor</span></div>
+            <label>Yenileme sıklığı<select id="refreshIntervalSelect"><option value="30000">30 saniye</option><option value="60000">1 dakika</option><option value="300000">5 dakika</option></select></label>
+            <div class="market-provider-list" aria-label="Piyasa veri kaynağı sağlığı">
+              <div id="marketTradingViewRow" class="market-provider-row"><span>TradingView</span><strong id="marketTradingViewStatus">Bekleniyor</strong><small id="marketTradingViewDetail">İlk fiyat yenilemesi bekleniyor</small></div>
+              <div id="marketYahooRow" class="market-provider-row"><span>Yahoo Finance</span><strong id="marketYahooStatus">Bekleniyor</strong><small id="marketYahooDetail">İlk fiyat yenilemesi bekleniyor</small></div>
+            </div>
+            <p id="marketLastSuccessfulAt" class="market-last-success">Henüz başarılı fiyat alımı yok</p>
+            <p class="settings-help">Web fiyat hizmeti TradingView Scanner verisini, gerektiğinde Yahoo Finance yedeğini kullanır. Sonuçlar sağlayıcıya göre gecikmeli olabilir.</p>
+          </section>
+          <section class="panel ai-settings-panel"><div class="panel-header"><div><h2>✦ Yapay Zekâ (Gemini)</h2><p>Teknik analiz ekranında AI yorumu için Gemini API anahtarını gir.</p></div></div>
+            <label>Gemini API Anahtarı
+              <div class="api-key-input-wrap">
+                <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." />
+                <button type="button" class="api-key-toggle" id="toggleApiKeyVisibility" aria-label="Anahtarı göster veya gizle"><span aria-hidden="true">◉</span></button>
+              </div>
+            </label>
+            <label>Kullanılacak Model
+              <select id="geminiModelSelect">
+                <option value="" disabled selected>Model listesi yükleniyor...</option>
+              </select>
+            </label>
+            <div class="ai-safety-note">ℹ️ Kullanım kotası ve ücretlendirme seçilen modele ve Google hesabınızın planına bağlıdır. Güncel koşulları Google AI Studio'dan kontrol edin.</div>
+            <p class="settings-help">Anahtar bulut veritabanına yazılmadan önce sunucuda şifrelenir; tarayıcı deposunda veya portföy yedeğinde tutulmaz. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="settings-link">Google AI Studio'dan anahtar al →</a></p>
+            <label class="ai-auto-label"><input type="checkbox" id="aiAutoAnalyze" /> Hisse açıldığında AI yorumunu otomatik çalıştır</label>
+            <button id="saveAiSettingsButton" class="button primary" type="button" style="margin-top:6px">AI ayarlarını kaydet</button>
+            <div id="aiSettingsStatus" class="ai-settings-status"></div>
+          </section>
+          <section class="panel tg-settings-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Telegram Bot Entegrasyonu</h2>
+                <p>Telefondan Midas ekran görüntüsü atınca işlemler otomatik portföye aktarılır.</p>
+              </div>
+              <span id="tgBotStatusBadge" class="status-badge" style="display:none"></span>
+            </div>
+            <label>Telegram Bot Token
+              <div class="api-key-input-wrap">
+                <input id="tgBotTokenInput" type="password" autocomplete="off" placeholder="1234567890:ABC..." />
+                <button type="button" class="api-key-toggle" id="toggleTgTokenVisibility" aria-label="Tokenı göster veya gizle"><span aria-hidden="true">◉</span></button>
+              </div>
+            </label>
+            <label>Telegram Kullanıcı ID
+              <input id="tgUserIdInput" type="text" autocomplete="off" placeholder="6723898498" />
+            </label>
+            <p class="settings-help">
+              Telegram'da <strong>@yatirim_defterim_bot</strong> botuna ekran görüntüsü atın, uygulama açıkken onay banner'ı gelecektir.
+            </p>
+            <button id="saveTgSettingsButton" class="button primary" type="button" style="margin-top:6px">Telegram ayarlarını kaydet</button>
+            <div id="tgSettingsStatus" class="ai-settings-status"></div>
+          </section>
+          <section class="panel danger-panel"><div class="panel-header"><div><h2>Veri yönetimi</h2><p>İşlemler bu tarayıcıda saklanır.</p></div></div>
+            <button id="exportBackupButton" class="button secondary" type="button">Tam yedek indir (JSON)</button>
+            <button id="importBackupButton" class="button secondary" type="button">Tam yedekten geri yükle</button>
+            <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
+            <button id="cloudHistoryButton" class="button secondary" type="button">Bulut sürüm geçmişi</button>
+            <button id="clearDemoButton" class="button secondary" type="button">Örnek verileri temizle</button>
+            <button id="resetAllButton" class="button danger" type="button">Tüm yerel verileri sıfırla</button>
+          </section>
+        </div>
+      </section>
+
+      <section id="stockDetailPage" class="page stock-detail-page" aria-labelledby="stockDetailSymbol">
+        <div class="stock-detail-toolbar">
+          <button id="stockDetailBackButton" class="button secondary" type="button">← Geri dön</button>
+          <div class="stock-detail-toolbar-right">
+            <span id="stockDetailStatus" class="status-chip neutral">Veriler hazırlanıyor</span>
+            <button id="stockDetailWatchlistButton" class="button secondary" type="button">☆ Takibe ekle</button>
+            <button id="stockDetailRefreshButton" class="button secondary" type="button">↻ Detayı yenile</button>
+          </div>
+        </div>
+
+        <section class="stock-detail-hero">
+          <div>
+            <div class="stock-detail-heading">
+              <h2 id="stockDetailSymbol">—</h2>
+              <span id="stockDetailPrice" class="stock-detail-price">—</span>
+              <span id="stockDetailChange" class="stock-detail-change">—</span>
+            </div>
+            <small id="stockDetailPriceContext" class="stock-detail-price-context">Fiyat oturumu hazırlanıyor</small>
+            <p id="stockDetailIdentity" class="stock-detail-identity">Şirket bilgisi hazırlanıyor</p>
+          </div>
+          <div class="stock-detail-position">
+            <span>PORTFÖYÜNDEKİ POZİSYON</span>
+            <strong id="stockDetailPositionValue">—</strong>
+            <small id="stockDetailPositionMeta">—</small>
+          </div>
+        </section>
+
+        <div class="stock-metric-grid" aria-label="Hisse özet metrikleri">
+          <article class="stock-metric-card"><span>YAKLAŞIK PİYASA DEĞERİ <button class="metric-help" type="button" aria-label="Piyasa değeri açıklaması" title="Son pay adedinin güncel fiyatla çarpılmasıyla hesaplanan yaklaşık şirket değeri.">i</button></span><strong id="stockMetricMarketCap">—</strong><small id="stockMetricMarketCapNote">SEC son pay adedi × güncel fiyat</small></article>
+          <article class="stock-metric-card"><span>CİRO BÜYÜMESİ <button class="metric-help" type="button" aria-label="Ciro büyümesi açıklaması" title="Son açıklanan dönemin cirosunun geçen yılın aynı dönemine göre değişimi.">i</button></span><strong id="stockMetricRevenueGrowth">—</strong><small id="stockMetricRevenueGrowthNote">Son açıklanan çeyrek / geçen yıl</small></article>
+          <article class="stock-metric-card"><span>F/K (GAAP · TTM) <button class="metric-help" type="button" aria-label="Fiyat kazanç oranı açıklaması" title="Güncel fiyatın son on iki aylık hisse başına kâra oranı.">i</button></span><strong id="stockMetricTrailingPe">—</strong><small id="stockMetricTrailingPeNote">Güncel fiyat / SEC son 12 ay seyreltilmiş EPS</small></article>
+          <article class="stock-metric-card unavailable"><span>İLERİ F/K <button class="metric-help" type="button" aria-label="İleri fiyat kazanç oranı açıklaması" title="Fiyatın beklenen gelecek dönem kârına oranı; analist tahmini gerektirir.">i</button></span><strong id="stockMetricForwardPe">—</strong><small id="stockMetricForwardPeNote">Ücretsiz resmi kaynakta analist tahmini yok</small></article>
+          <article class="stock-metric-card"><span>PEG (GERİYE DÖNÜK) <button class="metric-help" type="button" aria-label="PEG oranı açıklaması" title="Fiyat kazanç oranının gerçekleşmiş kâr büyümesine bölünmesiyle hesaplanır.">i</button></span><strong id="stockMetricPeg">—</strong><small id="stockMetricPegNote">F/K / gerçekleşmiş EPS büyümesi</small></article>
+          <article class="stock-metric-card"><span>RSI (14)</span><strong id="stockMetricRsi">—</strong><small id="stockMetricRsiNote">14 günlük momentum göstergesi</small></article>
+          <article class="stock-metric-card"><span>52 HAFTA BANDI</span><strong id="stockMetricRange">—</strong><small id="stockMetricRangeNote">Düşük — yüksek</small></article>
+          <article class="stock-metric-card"><span>TEKNİK AŞAMA</span><strong id="stockMetricStage">—</strong><small id="stockMetricStageNote">Fiyat, SMA50 ve SMA200 ilişkisi</small></article>
+        </div>
+
+        <section class="stock-price-map">
+          <div class="stock-section-title"><span>FİYAT HARİTASI</span><small>En yakın doğrulanabilir seviyeler</small></div>
+          <div class="stock-price-map-content">
+            <div><span>Üstte ilk engel</span><strong id="stockNearestResistance">—</strong></div>
+            <div><span>Altta ilk destek</span><strong id="stockNearestSupport">—</strong></div>
+          </div>
+          <div class="stock-range-track" aria-hidden="true"><span id="stockRangeFill"></span><i id="stockRangeMarker"></i></div>
+          <p id="stockPriceMapNote">Bir yıllık fiyat geçmişi bekleniyor.</p>
+        </section>
+
+        <section class="stock-analysis-section">
+          <div class="stock-section-title"><span>ANALİZLER</span><small>Modüller tek tek, doğrulanarak eklenecek</small></div>
+          <div class="stock-module-grid">
+            <article class="stock-module-card ready">
+              <div class="stock-module-title"><span>▥</span><h3>Teknik Analiz</h3><em>Hazır</em></div>
+              <p>Mevcut grafik, RSI, MACD, hareketli ortalamalar, destek ve direnç motorunu açar.</p>
+              <button id="openStockTechnicalButton" class="button secondary" type="button">Teknik analizi aç →</button>
+            </article>
+            <article class="stock-module-card ready">
+              <div class="stock-module-title"><span>▤</span><h3>Temel Analiz</h3><em>Hazır</em></div>
+              <p>TTM kârlılık, nakit akışı, bilanço dayanıklılığı, değerleme ve yıllık trendleri açar.</p>
+              <button id="openStockFundamentalButton" class="button secondary" type="button">Temel analizi aç →</button>
+            </article>
+          </div>
+          <details class="stock-roadmap"><summary>Geliştirme yol haritası</summary><p>Swing trade, bilanço senaryoları, haber-tez ilişkisi, anormal hareketler, opsiyon basınç haritası ve LEAP mentoru gelecek sürümler için planlanıyor.</p></details>
+        </section>
+
+        <footer class="stock-detail-footer">
+          <p id="stockDetailSources">Kaynaklar hazırlanıyor.</p>
+          <p>Bu ekran kişisel karar desteği içindir; yatırım tavsiyesi veya otomatik işlem talimatı değildir.</p>
+        </footer>
+      </section>
+
+      <section id="fundamentalAnalysisPage" class="page fundamental-page" aria-labelledby="fundamentalSymbol">
+        <div class="fundamental-toolbar">
+          <button id="fundamentalBackButton" class="button secondary" type="button">← Hisse detayına dön</button>
+          <div class="fundamental-toolbar-actions">
+            <span id="fundamentalStatus" class="status-chip neutral">Veriler hazırlanıyor</span>
+            <button id="fundamentalRefreshButton" class="button secondary" type="button">↻ SEC verisini yenile</button>
+          </div>
+        </div>
+
+        <section class="fundamental-hero">
+          <div>
+            <p class="eyebrow">DERİN TEMEL ANALİZ · SEC US-GAAP</p>
+            <div class="fundamental-title-row">
+              <h2 id="fundamentalSymbol">—</h2>
+              <strong id="fundamentalPrice">—</strong>
+              <span id="fundamentalPriceContext">—</span>
+            </div>
+            <p id="fundamentalIdentity">Şirket bilgisi hazırlanıyor</p>
+          </div>
+          <div class="fundamental-period-box">
+            <span>ANALİZ DÖNEMİ</span>
+            <strong id="fundamentalPeriod">—</strong>
+            <small id="fundamentalFiledAt">—</small>
+          </div>
+        </section>
+
+        <section class="fundamental-scorecard panel">
+          <div class="fundamental-section-heading">
+            <div><p class="eyebrow">TEMEL SAĞLIK KARNESİ</p><h2 id="fundamentalVerdict">Veriler değerlendiriliyor</h2></div>
+            <span id="fundamentalCoverage" class="fundamental-coverage">—</span>
+          </div>
+          <p id="fundamentalVerdictNote" class="fundamental-verdict-note">Puan yerine şeffaf eşikler kullanılır; sonuç al/sat sinyali değildir.</p>
+          <div class="fundamental-pillars">
+            <article id="fundamentalGrowthPillar"><span>BÜYÜME</span><strong>—</strong><small>—</small></article>
+            <article id="fundamentalProfitPillar"><span>KÂRLILIK</span><strong>—</strong><small>—</small></article>
+            <article id="fundamentalCashPillar"><span>NAKİT ÜRETİMİ</span><strong>—</strong><small>—</small></article>
+            <article id="fundamentalBalancePillar"><span>BİLANÇO</span><strong>—</strong><small>—</small></article>
+          </div>
+        </section>
+
+        <section class="fundamental-section">
+          <div class="fundamental-section-heading"><div><p class="eyebrow">TTM PERFORMANS</p><h2>Kârlılık ve nakit akışı</h2></div><small>Son mali yıl + güncel YTD − önceki yıl eş YTD</small></div>
+          <div class="fundamental-metric-grid">
+            <article><span>TTM CİRO</span><strong id="fundamentalRevenue">—</strong><small id="fundamentalRevenueNote">—</small></article>
+            <article><span>CİRO BÜYÜMESİ</span><strong id="fundamentalRevenueGrowth">—</strong><small id="fundamentalRevenueGrowthNote">Karşılaştırılabilir dönem yıllık değişimi</small></article>
+            <article><span>BRÜT MARJ</span><strong id="fundamentalGrossMargin">—</strong><small>Brüt kâr / ciro</small></article>
+            <article><span>FAALİYET MARJI</span><strong id="fundamentalOperatingMargin">—</strong><small>Faaliyet kârı / ciro</small></article>
+            <article><span>NET MARJ</span><strong id="fundamentalNetMargin">—</strong><small>Net kâr / ciro</small></article>
+            <article><span>TTM SERBEST NAKİT</span><strong id="fundamentalFcf">—</strong><small>CFO − maddi duran varlık yatırımı</small></article>
+            <article><span>FCF MARJI</span><strong id="fundamentalFcfMargin">—</strong><small>Serbest nakit / ciro</small></article>
+            <article><span>NAKİT DÖNÜŞÜMÜ</span><strong id="fundamentalCashConversion">—</strong><small>Faaliyet nakdi / net kâr</small></article>
+          </div>
+        </section>
+
+        <div class="fundamental-two-column">
+          <section class="fundamental-section">
+            <div class="fundamental-section-heading"><div><p class="eyebrow">BİLANÇO DAYANIKLILIĞI</p><h2>Likidite ve borç</h2></div><small id="fundamentalBalanceDate">—</small></div>
+            <div class="fundamental-list" id="fundamentalBalanceList"></div>
+          </section>
+          <section class="fundamental-section">
+            <div class="fundamental-section-heading"><div><p class="eyebrow">GERÇEKLEŞMİŞ DEĞERLEME</p><h2>Fiyatın finansallara oranı</h2></div><small>Tahmin içermez</small></div>
+            <div class="fundamental-list" id="fundamentalValuationList"></div>
+          </section>
+        </div>
+
+        <section class="fundamental-section">
+          <div class="fundamental-section-heading"><div><p class="eyebrow">YILLIK TREND</p><h2>Son raporlanan mali yıllar</h2></div><small>SEC 10-K · aynı seçilmiş XBRL kavramları</small></div>
+          <div class="table-wrap">
+            <table class="fundamental-trend-table">
+              <thead><tr><th>Dönem</th><th>Ciro</th><th>Brüt marj</th><th>Faaliyet marjı</th><th>Net kâr</th><th>Serbest nakit</th></tr></thead>
+              <tbody id="fundamentalTrendBody"><tr><td colspan="6">Veri hazırlanıyor.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="fundamental-two-column thesis-grid">
+          <section class="fundamental-section thesis positive-thesis"><p class="eyebrow">TEZİ DESTEKLEYENLER</p><ul id="fundamentalStrengths"><li>Veri hazırlanıyor.</li></ul></section>
+          <section class="fundamental-section thesis risk-thesis"><p class="eyebrow">İZLENECEK RİSKLER</p><ul id="fundamentalRisks"><li>Veri hazırlanıyor.</li></ul></section>
+        </div>
+
+        <details class="fundamental-methodology">
+          <summary>Hesap yöntemleri ve veri sınırları</summary>
+          <div id="fundamentalMethodologyContent">SEC kaynakları hazırlanıyor.</div>
+        </details>
+        <footer class="stock-detail-footer"><p id="fundamentalSources">Kaynaklar hazırlanıyor.</p><p>Gerçekleşmiş finansallara dayalı karar desteğidir; yatırım tavsiyesi değildir.</p></footer>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-bottom-nav" aria-label="Mobil ana menü">
+    <button class="mobile-nav-item active" data-mobile-page="dashboard" type="button"><span>◈</span><small>Genel Bakış</small></button>
+    <button class="mobile-nav-item" data-mobile-page="portfolio" type="button"><span>▦</span><small>Portföy</small></button>
+    <button class="mobile-nav-item" data-mobile-page="expenses" type="button"><span>◒</span><small>Harcamalar</small></button>
+    <button class="mobile-nav-item" data-mobile-page="transactions" type="button"><span>⇄</span><small>İşlemler</small></button>
+    <button class="mobile-nav-item" id="mobileMoreButton" type="button"><span>•••</span><small>Daha</small></button>
+  </nav>
+
+  <dialog id="mobileMoreDialog" class="mobile-more-dialog">
+    <div class="mobile-sheet-handle" aria-hidden="true"></div>
+    <div class="dialog-header"><div><p class="eyebrow">DAHA</p><h2>Diğer ekranlar</h2></div><button id="closeMobileMoreButton" class="icon-button" type="button" aria-label="Menüyü kapat">×</button></div>
+    <div class="mobile-more-grid">
+      <button data-mobile-page="trendCheck" type="button"><span>↗</span><strong>Trend Check</strong><small>Trend ve çıkış referansı</small></button>
+      <button data-mobile-page="decision" type="button"><span>◎</span><strong>Karar merkezi</strong><small>Yatırım bütçesi ve hisse tezleri</small></button>
+      <button data-mobile-page="calendar" type="button"><span>□</span><strong>Finansal takvim</strong><small>Önemli tarihler ve ödemeler</small></button>
+      <button data-mobile-page="watchlist" type="button"><span>☆</span><strong>Takip listesi</strong><small>İzlediğin hisseler</small></button>
+      <button data-mobile-page="closed" type="button"><span>✓</span><strong>Kapanmış pozisyonlar</strong><small>Gerçekleşen sonuçlar</small></button>
+      <button data-mobile-page="settings" type="button"><span>⚙</span><strong>Ayarlar</strong><small>Tercihler ve bağlantılar</small></button>
+      <button id="mobileDataManagementButton" type="button"><span>⇅</span><strong>Veri yönetimi</strong><small>Yedek, geri yükleme ve geçmiş</small></button>
+    </div>
+  </dialog>
+
+  <dialog id="onboardingDialog" class="experience-dialog onboarding-dialog">
+    <div class="onboarding-mark" aria-hidden="true">◔</div>
+    <p class="eyebrow">YATIRIM DEFTERİM'E HOŞ GELDİN</p>
+    <h2>Portföyünü nasıl başlatmak istersin?</h2>
+    <p class="dialog-copy">Yeni hesap boş açılır. Kendi işlemini ekleyebilir, yedeğini getirebilir veya uygulamayı örnek verilerle güvenle inceleyebilirsin.</p>
+    <div class="onboarding-options">
+      <button id="onboardingAddButton" class="onboarding-option primary-option" type="button"><span>＋</span><div><strong>İlk işlemi ekle</strong><small>Alış, satış veya nakit hareketiyle başla</small></div></button>
+      <button id="onboardingImportButton" class="onboarding-option" type="button"><span>⇧</span><div><strong>Yedeği içe aktar</strong><small>Mevcut JSON portföy yedeğini kullan</small></div></button>
+      <button id="onboardingDemoButton" class="onboarding-option" type="button"><span>◇</span><div><strong>Örnek portföyü incele</strong><small>Her ekranda demo etiketiyle açılır</small></div></button>
+    </div>
+    <button id="onboardingEmptyButton" class="text-button onboarding-empty" type="button">Şimdilik boş portföyle devam et</button>
+  </dialog>
+
+  <dialog id="cloudConflictDialog" class="experience-dialog conflict-dialog">
+    <div class="dialog-header"><div><p class="eyebrow">EŞİTLEME ÇAKIŞMASI</p><h2>İki cihazda farklı değişiklikler var</h2></div></div>
+    <p class="dialog-copy">Hiçbir kayıt otomatik olarak ezilmedi. İki sürümü karşılaştırıp nasıl devam etmek istediğini seç.</p>
+    <div class="conflict-summary-grid">
+      <article id="localConflictSummary"></article>
+      <article id="cloudConflictSummary"></article>
+    </div>
+    <ul id="cloudConflictDifferences" class="conflict-differences"></ul>
+    <div class="conflict-actions">
+      <button id="conflictKeepLocal" class="button primary" type="button">Yereli koru</button>
+      <button id="conflictMerge" class="button secondary" type="button">Kayıtları birleştir</button>
+      <button id="conflictUseCloud" class="button secondary" type="button">Bulutu kullan</button>
+    </div>
+    <button id="conflictDecideLater" class="text-button conflict-later" type="button">Şimdilik karar verme</button>
+  </dialog>
+
+  <dialog id="infoDialog" class="experience-dialog information-dialog" aria-labelledby="infoDialogTitle">
+    <div class="panel-header"><h2 id="infoDialogTitle">Bilgi</h2><button id="closeInfoDialog" class="button secondary small" type="button" aria-label="Bilgiyi kapat">Kapat</button></div>
+    <div id="infoDialogContent"></div>
+  </dialog>
+  <dialog id="cloudHistoryDialog" class="experience-dialog history-dialog">
+    <div class="dialog-header"><div><p class="eyebrow">BULUT YEDEKLERİ</p><h2>Son 20 sürüm</h2></div><button id="closeCloudHistoryButton" class="icon-button" type="button" aria-label="Geçmişi kapat">×</button></div>
+    <p class="dialog-copy">Bir sürüme dönmek mevcut veriyi silmez; seçilen kayıt yeni bir bulut sürümü olarak kaydedilir.</p>
+    <div id="cloudHistoryList" class="cloud-history-list"></div>
+  </dialog>
+
+  <dialog id="technicalDialog" class="technical-dialog">
+    <div class="technical-dialog-content">
+      <div class="dialog-header technical-header">
+        <div><p class="eyebrow">TEKNİK ANALİZ</p><h2 id="technicalTitle">Hisse detayı</h2><p id="technicalSubtitle" class="technical-subtitle">Geçmiş fiyat verisi yükleniyor...</p></div>
+        <button class="icon-button" type="button" id="closeTechnicalDialogButton" aria-label="Teknik analiz penceresini kapat">×</button>
+      </div>
+      <div class="technical-toolbar">
+        <div class="period-toggle" id="technicalPeriodGroup">
+          <button class="badge-button" data-technical-period="1d" type="button">1 Gün</button>
+          <button class="badge-button" data-technical-period="1w" type="button">1 Hafta</button>
+          <button class="badge-button" data-technical-period="1mo" type="button">1 Ay</button>
+          <button class="badge-button" data-technical-period="3mo" type="button">3 Ay</button>
+          <button class="badge-button active" data-technical-period="6mo" type="button">6 Ay</button>
+          <button class="badge-button" data-technical-period="ytd" type="button">YTD</button>
+          <button class="badge-button" data-technical-period="1y" type="button">1 Yıl</button>
+        </div>
+        <p class="technical-toolbar-note">Sonuç, seçtiğin dönemdeki göstergelerin birlikte değerlendirilmesiyle oluşur.</p>
+      </div>
+      <section class="technical-summary-overview-card" id="technicalOverviewCard" aria-label="Basit teknik yorum">
+        <div id="technicalOverviewContent">
+          <p class="levels-loading">Basit yorum hesaplanıyor...</p>
+        </div>
+      </section>
+
+      <details class="technical-advanced-details" id="technicalAdvancedDetails">
+        <summary>
+          <span><strong>Grafikleri ve gösterge ayrıntılarını göster</strong><small>SMA, RSI, MACD, ATR, hacim, destek ve direnç</small></span>
+          <span class="technical-details-chevron" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="technical-advanced-body">
+          <div class="indicator-toggles" aria-label="Gösterge ve seviye seçimi">
+          <label><input id="toggleSma20" type="checkbox" checked /> SMA20</label>
+          <label><input id="toggleSma50" type="checkbox" checked /> SMA50</label>
+          <label><input id="toggleSma200" type="checkbox" checked /> SMA200</label>
+          <label><input id="toggleChannel" type="checkbox" checked /> Trend kanalı</label>
+          <span class="toggle-sep">|</span>
+          <label class="toggle-badge stop-bal"><input id="toggleStopBalanced" type="checkbox" checked /> Dengeli stop</label>
+          <label class="toggle-badge stop-cons"><input id="toggleStopCons" type="checkbox" /> Sıkı stop</label>
+          <label class="toggle-badge stop-aggr"><input id="toggleStopAggr" type="checkbox" /> Geniş stop</label>
+          <span class="toggle-sep">|</span>
+          <label class="toggle-badge res-1"><input id="toggleRes1" type="checkbox" checked /> Direnç 1</label>
+          <label class="toggle-badge res-2"><input id="toggleRes2" type="checkbox" /> Direnç 2</label>
+          <label class="toggle-badge sup-1"><input id="toggleSup1" type="checkbox" checked /> Destek 1</label>
+          <label class="toggle-badge sup-2"><input id="toggleSup2" type="checkbox" /> Destek 2</label>
+        </div>
+
+      <section class="trend-channel-card" id="trendChannelCard">
+        <div id="trendChannelContent"><p class="levels-loading">Trend ve kanal hesaplanıyor...</p></div>
+      </section>
+
+      <section class="technical-chart-card">
+            <div class="technical-chart-heading">
+              <div>
+                <h3>Fiyat ve Hareketli Ortalamalar (SMA) <button class="info-icon" type="button" aria-label="Gösterge açıklaması" aria-haspopup="dialog">i<span class="info-tooltip"><strong>SMA (Basit Hareketli Ortalama)</strong>SMA 20 (Kısa Vade): Fiyatın anlık yönünü gösterir. Fiyat SMA 20'ye çarptığında destek veya direnç görevi görebilir.<br><br>SMA 50 (Orta Vade): Kurumsal yatırımcıların takip ettiği güçlü bir destek/direnç bölgesidir.<br><br>SMA 200 (Uzun Vade): Ana trendi belirler. Fiyat üzerindeyse uzun vadeli yükseliş, altındaysa düşüş trendi (ayı piyasası) olarak okunur.</span></button></h3>
+                <p>Son kapanış: <span id="technicalLatestPrice">—</span></p>
+              </div><div class="technical-legend"><span><i class="legend-line price"></i>Fiyat</span><span><i class="legend-line channel"></i>Trend kanalı</span><span><i class="legend-line sma20"></i>SMA20</span><span><i class="legend-line sma50"></i>SMA50</span><span><i class="legend-line sma200"></i>SMA200</span></div></div>
+        <div id="priceTooltip" class="chart-tooltip"></div>
+        <svg id="technicalChart" viewBox="0 0 720 300" role="img" aria-label="Fiyat ve hareketli ortalamalar grafiği"></svg>
+      </section>
+      <div class="technical-bottom-grid">
+        <div class="technical-subcharts">
+          <section class="technical-chart-card rsi-card">
+            <div class="technical-chart-heading">
+              <div>
+                <h3>RSI (14) <button class="info-icon" type="button" aria-label="Gösterge açıklaması" aria-haspopup="dialog">i<span class="info-tooltip"><strong>RSI (Göreceli Güç Endeksi)</strong>Aşırı Alım (70+): Fiyatın "şiştiği", alıcıların yorulup düzeltme gelebileceği bölgedir.<br><br>Aşırı Satım (30-): Fiyatın aşırı düştüğü, satıcıların azalıp tepki alımının gelebileceği bölgedir.<br><br><em>Not: Güçlü bir boğa (yükseliş) trendinde RSI uzun süre 70'in üzerinde kalabilir.</em></span></button></h3>
+                <p>30 ve 70 seviyeleri referans bölgeleridir.</p>
+              </div>
+              <strong id="rsiValue" class="technical-value">—</strong></div>
+            <div id="rsiTooltip" class="chart-tooltip"></div>
+            <svg id="rsiChart" viewBox="0 0 400 160" role="img" aria-label="RSI grafiği"></svg>
+          </section>
+          <section class="technical-chart-card macd-card" id="macdCardContainer" style="display:none">
+            <div class="technical-chart-heading">
+              <div>
+                <h3>MACD (12, 26, 9) <button class="info-icon" type="button" aria-label="Gösterge açıklaması" aria-haspopup="dialog">i<span class="info-tooltip"><strong>MACD (Trend İvmesi)</strong>Sinyal Kesişimi: MACD çizgisi (mavi), Sinyal çizgisini (sarı) aşağıdan yukarı kestiğinde AL sinyali, yukarıdan aşağı kestiğinde SAT sinyali üretir.<br><br>Sıfır Çizgisi: Histogram çubukları sıfırın üzerindeyse yükseliş ivmesi, altındaysa düşüş ivmesi güçlüdür.</span></button></h3>
+              </div><strong id="macdValue" class="technical-value">—</strong></div>
+            <div id="macdTooltip" class="chart-tooltip"></div>
+            <svg id="macdChart" viewBox="0 0 400 160" role="img" aria-label="MACD grafiği"></svg>
+          </section>
+        </div>
+        <div class="technical-summary-column">
+          <section class="levels-card">
+            <p class="eyebrow">ZARAR KES SEVİYELERİ & HEDEFLER</p>
+            <div id="levelsContent" class="levels-content"><p class="levels-loading">Hesaplanıyor...</p></div>
+          </section>
+          <section class="technical-summary-card">
+            <p class="eyebrow">GÖSTERGE ÖZETİ</p>
+          <div id="technicalSummary" class="technical-summary"><p>Veri yükleniyor...</p></div>
+          <p class="technical-disclaimer">Gösterge tabanlı bilgilendirmedir; alım veya satım önerisi değildir.</p>
+        </section>
+      </div>
+
+      <!-- Breakout/Breakdown Modülü -->
+      <section class="breakout-card" id="breakoutCard">
+        <p class="eyebrow">FİYAT NEREYE GİDİYOR?</p>
+        <div id="breakoutContent">
+          <p class="levels-loading">Analiz ediliyor...</p>
+        </div>
+      </section>
+        </div>
+      </details>
+
+      <!-- AI Yorum Bölümü -->
+      <section class="ai-analysis-card" id="aiAnalysisCard">
+        <div class="ai-analysis-header">
+          <div class="ai-badge">✦ Gemini AI</div>
+          <div>
+            <h3>AI ile anlaşılır ikinci görüş</h3>
+            <p>SMA, RSI, MACD, hacim ve ATR aynı sade düzende yeniden yorumlanır. API anahtarın sunucuda şifrelenir ve portföy yedeğine eklenmez.</p>
+          </div>
+          <button class="button primary ai-analyze-btn" type="button" id="aiAnalyzeButton">✦ AI ile Yorumla</button>
+        </div>
+        <div id="aiAnalysisResult" class="ai-analysis-result ai-idle">
+          <p class="ai-idle-text">Butona tıklayınca Gemini önce net sonucu, sonra göstergelerin ne anlattığını açıklar. API anahtarını Ayarlar → Yapay Zekâ bölümünden girebilirsin.</p>
+        </div>
+      </section>
+
+      <section class="technical-alert-card">
+        <div><h3>Teknik alarm</h3><p>RSI seviyesi veya SMA20/SMA50 kesişimi oluştuğunda uygulama içi bildirim al.</p></div>
+        <form id="technicalAlertForm" class="technical-alert-form">
+          <select id="technicalAlertType" aria-label="Alarm türü"><option value="RSI_BELOW">RSI aşağı inerse</option><option value="RSI_ABOVE">RSI yukarı çıkarsa</option><option value="SMA20_CROSS_UP">SMA20, SMA50'yi yukarı keserse</option><option value="SMA20_CROSS_DOWN">SMA20, SMA50'yi aşağı keserse</option></select>
+          <input id="technicalAlertThreshold" type="number" min="1" max="99" step="1" value="30" aria-label="RSI seviyesi" />
+          <button class="button primary" type="submit">Alarm ekle</button>
+        </form>
+        <div id="technicalAlertList" class="technical-alert-list"></div>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="transactionDialog" class="transaction-dialog">
+    <form id="transactionForm" method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">İŞLEM DEFTERİ</p><h2 id="transactionDialogTitle">Yeni işlem</h2></div><button class="icon-button" type="button" id="closeDialogButton" aria-label="Pencereyi kapat">×</button></div>
+      <div class="form-grid">
+        <label>İşlem türü<select id="transactionType" required><option value="BUY">Alış</option><option value="SELL">Satış</option><option value="IPO_BUY">Halka arz alımı</option><option value="DEPOSIT">Para yatırma</option><option value="WITHDRAWAL">Para çekme</option><option value="DIVIDEND">Temettü</option></select></label>
+        <label>Tarih<input id="transactionDate" type="date" required /></label>
+        <label id="transactionMarketLabel">Piyasa<select id="transactionMarket"><option value="BIST">BIST</option><option value="ABD">ABD</option></select></label>
+        <label>Para birimi<select id="transactionCurrency"><option value="TRY">TRY</option><option value="USD">USD</option></select></label>
+        <label id="transactionSymbolLabel">Hisse kodu<input id="transactionSymbol" type="text" maxlength="24" placeholder="Örn. THYAO.IS veya NVDA" /></label>
+        <label id="transactionNameLabel">Varlık adı<input id="transactionName" type="text" maxlength="60" placeholder="Örn. Türk Hava Yolları" /></label>
+        <label id="transactionPriceLabel">Birim fiyat<input id="transactionPrice" type="number" min="0" step="0.000001" placeholder="0" /></label>
+        <label id="transactionTotalLabel"><span id="transactionTotalLabelText">Toplam yatırım tutarı</span><input id="transactionTotal" type="number" min="0" step="0.01" placeholder="Örn. 100 ($/TL)" /></label>
+        <label id="transactionQuantityLabel">Adet (Lot)<input id="transactionQuantity" type="number" min="0" step="0.000000001" placeholder="Otomatik hesaplanır" /></label>
+        <label>Komisyon<input id="transactionFee" type="number" min="0" step="0.01" value="0" /></label>
+        <label id="transactionProfitShareLabel" hidden>Kâr paylaşımı / aile payı<input id="transactionProfitShare" type="number" min="0" step="0.01" value="0" /></label>
+      </div>
+        <p class="form-help" id="transactionFormHelp">İster toplam yatırım tutarını ($/TL) gir, istersen adedi gir; lot sayısı otomatik hesaplanır.</p>
+      <div class="dialog-actions"><button class="button secondary" id="cancelDialogButton" type="button">Vazgeç</button><button class="button primary" type="submit">İşlemi kaydet</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dangerActionsDialog" class="transaction-dialog danger-actions-dialog" aria-labelledby="dangerActionsTitle">
+    <form method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">TEHLİKELİ İŞLEMLER</p><h2 id="dangerActionsTitle">Açık pozisyonları temizle</h2></div><button class="icon-button" type="button" id="closeDangerActionsButton" aria-label="Tehlikeli işlemler penceresini kapat">×</button></div>
+      <div class="danger-summary" id="dangerDeleteSummary"></div>
+      <p class="form-help">İşlem defterindeki ilgili alış ve satış kayıtları kaldırılır. İşlemden sonra 12 saniye boyunca geri alabilirsin.</p>
+      <div class="dialog-actions"><button class="button secondary" type="button" id="cancelDangerActionsButton">Vazgeç</button><button class="button danger" type="button" id="confirmClearPortfolioButton">Pozisyonları sil</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"><span id="toastMessage"></span><button id="toastUndoButton" type="button" hidden>Geri al</button></div>
+    
+
+  <!-- Excel/CSV Import Sihirbazı Modal -->
+  <dialog id="importDialog" class="transaction-dialog import-dialog">
+    <form id="importForm">
+      <div class="dialog-header">
+        <div>
+          <h2 id="importDialogTitle">Excel / CSV İçe Aktarma Sihirbazı</h2>
+          <p class="form-help" id="importDialogHelp">Dosyanızdaki sütunlar eşleştirildi. Önizlemeyi kontrol edin.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeImportDialogBtn" aria-label="İçe aktarma penceresini kapat" onclick="document.getElementById('importDialog').close()">×</button>
+      </div>
+
+      <!-- Sütun Eşleştirme Kartı -->
+      <div id="importMappingSection" class="import-section">
+        <div class="import-section-title">1. Sütun Eşleştirme (Otomatik Algılandı)</div>
+        <div class="import-mapping-grid" id="importMappingGrid"></div>
+      </div>
+
+      <!-- Çoklu Tablo Uyarısı -->
+      <div id="importBlocksSection" class="import-section" style="display:none; margin-top:10px;">
+        <div id="importBlocksInfo"></div>
+      </div>
+
+      <!-- Önizleme ve Doğrulama Tablosu -->
+      <div id="importPreviewSection" class="import-section" style="margin-top:14px;">
+        <div class="import-section-title">2. Aktarılacak Veri Önizlemesi & Doğrulama</div>
+        <div id="importValidationSummary" class="import-validation-summary"></div>
+        <div class="table-wrap import-preview-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Durum</th>
+                <th>Sembol (Kodu)</th>
+                <th class="number">Lot</th>
+                <th class="number">Alış F.</th>
+                <th class="number">Satış F.</th>
+                <th class="number">Maliyet</th>
+                <th class="number">Gelir</th>
+                <th class="number">Kar</th>
+                <th class="number">Kar %</th>
+                <th>Satış Tarihi</th>
+                <th>Para Birimi</th>
+              </tr>
+            </thead>
+            <tbody id="importPreviewTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="dialog-actions" style="margin-top: 16px;">
+        <button class="button secondary" type="button" id="cancelImportBtn" onclick="document.getElementById('importDialog').close()">İptal</button>
+        <button class="button primary" type="button" id="confirmImportBtn" onclick="confirmImportData()">✓ Onayla ve İçe Aktar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Kapanmış Pozisyon Manuel Ekleme Modal -->
+  <dialog id="closedPosDialog" class="transaction-dialog">
+    <form id="closedPosForm">
+      <div class="dialog-header">
+        <div>
+          <h2 id="closedPosDialogTitle">Kapanmış Pozisyon Ekle</h2>
+          <p class="form-help">Satışı tamamlanmış hisse kaydını ekleyin.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeClosedPosDialogBtn" aria-label="Kapanmış pozisyon penceresini kapat">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Piyasa / Tür
+          <select id="closedMarketSelect">
+            <option value="BIST">BİST (Türk Hisseleri)</option>
+            <option value="ABD">ABD / Yabancı Hisseler</option>
+          </select>
+        </label>
+        <label>Sembol (Kodu)
+          <input type="text" id="closedSymbolInput" placeholder="Örn. THYAO.IS veya NVDA" required />
+        </label>
+        <label>Varlık / Şirket Adı
+          <input type="text" id="closedNameInput" placeholder="Örn. Türk Hava Yolları" />
+        </label>
+        <label>Para Birimi
+          <select id="closedCurrencySelect">
+            <option value="TRY">Türk Lirası (TRY)</option>
+            <option value="USD">Amerikan Doları (USD)</option>
+          </select>
+        </label>
+        <label>Lot (Adet)
+          <input type="number" id="closedLotInput" min="0" step="any" required placeholder="100" />
+        </label>
+        <label>Birim Alış Fiyatı
+          <input type="number" id="closedBuyPriceInput" min="0" step="any" required placeholder="245.50" />
+        </label>
+        <label>Birim Satış Fiyatı
+          <input type="number" id="closedSellPriceInput" min="0" step="any" required placeholder="298.00" />
+        </label>
+        <label>Alış Tarihi (Opsiyonel)
+          <input type="date" id="closedBuyDateInput" />
+        </label>
+        <label>Satış Tarihi
+          <input type="date" id="closedSellDateInput" required />
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button secondary" type="button" id="cancelClosedPosBtn">İptal</button>
+        <button class="button primary" type="submit">Kaydet</button>
+      </div>
+    </form>
+  </dialog>
+
+
+  <!-- Pozisyon İşlemleri Düzenleme Seçim Modal -->
+  <dialog id="positionTxDialog" class="transaction-dialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <div>
+          <h2 id="positionTxDialogTitle">Pozisyon İşlemleri</h2>
+          <p class="form-help" id="positionTxDialogHelp">Düzenlemek istediğiniz işlemi seçin.</p>
+        </div>
+        <button type="button" class="icon-button" aria-label="Pozisyon işlemleri penceresini kapat" onclick="document.getElementById('positionTxDialog').close()">×</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Tür</th>
+              <th class="number">Adet</th>
+              <th class="number">Fiyat</th>
+              <th class="number">Toplam</th>
+              <th>İşlem</th>
+            </tr>
+          </thead>
+          <tbody id="positionTxList"></tbody>
+        </table>
+      </div>
+      <div class="dialog-actions" style="margin-top: 14px;">
+        <button class="button secondary" type="button" onclick="document.getElementById('positionTxDialog').close()">Kapat</button>
+      </div>
+    </form>
+  </dialog>
+
+<!-- AI İşlem Asistanı — Sabit Buton -->
+<button id="aiAssistantBtn" aria-label="AI İşlem Asistanı" title="AI ile hızlı işlem ekle">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
+    <circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="15" cy="14" r="1" fill="currentColor" stroke="none"/>
+  </svg>
+  <span>AI Asistan</span>
+</button>
+
+<!-- AI İşlem Asistanı — Drawer Panel -->
+<div id="aiAssistantOverlay" class="ai-overlay" aria-hidden="true"></div>
+<div id="aiAssistantPanel" class="ai-panel" role="dialog" aria-modal="true" aria-label="AI İşlem Asistanı" aria-hidden="true" tabindex="-1">
+  <div class="ai-panel-header">
+    <div>
+      <p class="eyebrow">YAPAY ZEKÂ</p>
+      <h2>İşlem Asistanı</h2>
+    </div>
+    <button class="icon-button" id="aiAssistantCloseBtn" aria-label="AI işlem asistanını kapat">×</button>
+  </div>
+
+  <p class="ai-panel-desc">
+    Midas'tan yaptığın işlemin ekran görüntüsünü yükle <em>veya</em> metin olarak yaz — AI bilgileri otomatik çıkartır, sen onaylarsın.
+  </p>
+
+  <!-- Sekme seçici -->
+  <div class="ai-tab-group" role="tablist">
+    <button class="ai-tab active" id="aiTabText" role="tab" aria-selected="true" data-tab="text"><span aria-hidden="true">≡</span> Metin</button>
+    <button class="ai-tab" id="aiTabImage" role="tab" aria-selected="false" data-tab="image"><span aria-hidden="true">▧</span> Görüntü</button>
+  </div>
+
+  <!-- Metin sekmesi -->
+  <div id="aiPaneText" class="ai-pane active">
+    <textarea id="aiTextInput" class="ai-textarea" rows="4"
+      placeholder="Örn: GARAN'dan 50 lot 106 TL'den aldım bugün&#10;veya: 15 lot THYAO sattım 310 TL ortalama fiyattan"></textarea>
+  </div>
+
+  <!-- Görüntü sekmesi -->
+  <div id="aiPaneImage" class="ai-pane">
+    <!-- Thumbnail grid (yüklenen görüntüler) -->
+    <div id="aiImageThumbGrid" class="ai-thumb-grid" style="display:none"></div>
+    <!-- Drop zone -->
+    <div id="aiDropZone" class="ai-drop-zone" tabindex="0" role="button" aria-label="Görüntü yükle">
+      <div class="ai-drop-icon" aria-hidden="true">＋</div>
+      <div class="ai-drop-label">Sürükle bırak veya tıkla</div>
+      <div class="ai-drop-sub">PNG, JPG, WEBP — en fazla 5 görüntü</div>
+      <input id="aiImageInput" type="file" accept="image/*" multiple style="display:none" />
+    </div>
+    <p class="ai-paste-hint">İpucu · Ctrl+V ile pano görüntüsünü yapıştırabilirsin</p>
+  </div>
+
+  <!-- Analiz butonu -->
+  <button class="button primary" id="aiAnalyzeBtn" style="width:100%; margin-top:14px;">
+    <span id="aiAnalyzeBtnText">Analiz et</span>
+  </button>
+
+  <!-- Hata mesajı -->
+  <div id="aiAssistantError" class="ai-error" style="display:none"></div>
+
+  <!-- Önizleme alanı -->
+  <div id="aiPreviewArea" style="display:none">
+    <div class="ai-preview-divider">
+      <span>Bulunan İşlemler</span>
+    </div>
+    <div id="aiPreviewList" class="ai-preview-list"></div>
+  </div>
+</div>
+
+<script src="portfolio_core.js?v=14.18"></script>
+<script src="offline-queue.js?v=13.6"></script>
+<script src="expense-core-v14.17.js?v=14.18"></script>
+<script src="app-v14.17.js?v=14.18"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1787936533041,
+      "tag": "0000_gray_giant_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788011305525,
+      "tag": "0001_dry_piledriver",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788030437393,
+      "tag": "0002_windy_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788717474156,
+      "tag": "0003_bouncy_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789035949063,
+      "tag": "0004_nebulous_vision",
+      "breakpoints": true
+    }
+  ]
+}
