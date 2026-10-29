@@ -1,8 +1,8 @@
 {
-  "name": "Yatırım Defterim",
-  "short_name": "Yatırım",
-  "description": "Kişisel Portföy ve Yatırım Takip Uygulaması",
-  "id": "/legacy/index.html",
+  "name": "Yatırım Defterim — Örnek Portföy",
+  "short_name": "Örnek Portföy",
+  "description": "Yatırım Defterim uygulamasını temsili kayıtlarla deneyin.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

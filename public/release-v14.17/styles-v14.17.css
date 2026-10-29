@@ -2784,3 +2784,5 @@ button.expense-anomaly-item:hover { border-color: color-mix(in srgb, var(--yello
 @media (prefers-reduced-motion: reduce) {
   .ti-agreement-track span, .technical-details-chevron { transition: none; }
 }
+
+.demo-integration-note{font-size:12px;line-height:1.5;color:var(--text-muted,#a7b3c4);padding:8px 12px;margin:0 0 14px;border:1px solid var(--border,#283244);border-radius:8px}

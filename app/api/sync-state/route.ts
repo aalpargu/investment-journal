@@ -1,3 +1,4 @@
+import { ensureDemoState } from '@/lib/demo-store';
 import { ensureNormalizedPortfolioState, readPortfolioState, writePortfolioState } from '@/lib/cloud-store';
 import { isPortfolioState } from '@/lib/portfolio-state-codec';
 import { getRequestUserId } from '@/lib/request-user';
@@ -30,6 +31,7 @@ function publicState(row: Awaited<ReturnType<typeof readPortfolioState>>) {
 export async function GET(request: Request): Promise<Response> {
   const userId = getRequestUserId(request);
   if (!userId) return json({ error: 'Oturum gerekli.' }, 401);
+  await ensureDemoState(userId);
   const row = await readPortfolioState(userId);
   if (row) await ensureNormalizedPortfolioState(userId).catch(() => false);
   return json(publicState(row));

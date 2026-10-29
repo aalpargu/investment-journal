@@ -1,17 +1,19 @@
 # Yatırım Defterim
 
-BIST ve ABD varlıkları için kişisel portföy ve işlem günlüğü. İşlem defteri, açık/kapalı pozisyonlar, fiyat geçmişi, dışa aktarma ve Telegram üzerinden işlem taslağı oluşturma işlevlerini bir araya getirir.
+Yatırım işlemlerimi, harcamalarımı ve karar notlarımı tek yerde takip etmek için geliştirdiğim uygulama. BIST ve ABD varlıklarında açık ve kapanmış pozisyonları işlem kayıtlarından hesaplar.
 
-[English and detailed setup](README.md)
+[Örnek portföyü dene](https://investment-journal-demo-alpargu.flowydream.chatgpt.site) · [English and setup](README.md)
 
-## Teknoloji
+Canlı örneği kullanmak için kurulum gerekmez. ChatGPT hesabıyla giriş yapan her ziyaretçiye ayrı temsili portföy açılır. Kayıt ekleme, düzenleme, silme, takip listesi, harcamalar, finansal takvim, analiz ekranları, içe/dışa aktarma ve kayıt geçmişi aynı uygulama arayüzünde bulunur.
 
-React/TypeScript, JavaScript portföy arayüzü, vinext/Vite, Cloudflare Workers, D1, Drizzle; isteğe bağlı Gemini ve Telegram.
+**AI ile görsel okuma ve Telegram bağlantıları bu ortamda henüz yapılandırılmadı.** İlgili ekranlarda kısa açıklama var; bu bağlantılar daha sonra eklenecek. Diğer özellikleri denemek için API anahtarı veya bot kurmak gerekmez.
 
-## Çalıştırma
+## Veri ayrımı
 
-Node.js 24 ile `npm ci` ve `npm run dev`. Kendi kullanımın için hesap izin listesini, Google OAuth ayarlarını, D1 veritabanını ve sunucu gizli ayarlarını yapılandırmalısın. İngilizce rehber adımları ve test komutlarını içerir.
+Örnekteki işlemler ve tutarlar temsilidir. Geliştiricinin gerçek portföyü, veritabanı, yedekleri ve kişisel hizmet anahtarları bu yayına bağlı değildir. Ziyaretçilerin kayıtları hem sunucuda hem tarayıcı deposunda hesap bazında ayrılır. İlk kayıtlar yalnızca bir kez oluşturulur; sonraki girişlerde yapılan düzenlemeler korunur.
 
-## Kapsam ve durum
+## Teknoloji ve doğrulama
 
-Bu kaynak kopyasında kişisel hesap ve dağıtım bilgileri örnek değerlerle değiştirilmiştir. Gerçek portföy kayıtları ve gizli anahtarlar bulunmaz. Canlı piyasa verisi ile gerçek Telegram/OAuth bağlantısı ayrı doğrulama gerektirir.
+React/TypeScript, JavaScript portföy arayüzü, vinext/Vite, Cloudflare Workers, D1 ve Drizzle. Ayrıntılı kaynak haritası, yerel çalıştırma ve test komutları [İngilizce rehberde](README.md).
+
+29 Ekim 2026 kontrolünde mevcut testler, hesap ayrımı için HTTP kontrolleri, TypeScript ve üretim derlemesi geçti. BIST/ABD fiyat çağrısı da başarılıydı. Demo için tam görsel/cihaz kontrolü henüz tamamlanmadı; AI ve Telegram bağlantı testleri sonraya bırakıldı.

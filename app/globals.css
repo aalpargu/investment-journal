@@ -61,3 +61,5 @@ body {
 .access-card h1 { margin: 0 0 12px; font: 700 30px/1.15 Arial, sans-serif; }
 .access-card p { margin: 0; color: #aeb6ca; font: 400 15px/1.65 Arial, sans-serif; }
 .access-button { display: inline-flex; margin-top: 24px; padding: 12px 18px; border-radius: 10px; background: #7667ff; color: white; font: 700 14px/1 Arial, sans-serif; text-decoration: none; }
+
+.demo-shell{height:100dvh;display:flex;flex-direction:column}.demo-shell>.app-frame{flex:1;width:100%;border:0;min-height:0}.demo-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 16px;background:#142b27;color:#d0e9df;font:13px/1.4 system-ui}.demo-notice a{color:#a5e8ce;white-space:nowrap}

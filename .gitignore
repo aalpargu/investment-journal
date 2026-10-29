@@ -40,3 +40,8 @@ next-env.d.ts
 /.tools/
 /.secrets/
 *.tsbuildinfo
+
+.openai/local*
+.openai/*credential*
+.dev.vars*
+/.sites-runtime/

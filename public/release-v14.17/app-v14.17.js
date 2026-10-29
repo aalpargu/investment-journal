@@ -1,4 +1,6 @@
 "use strict";
+const demoLocalStorage = window.DemoContext.local;
+const demoSessionStorage = window.DemoContext.session;
 
 const STORAGE_KEY = "yatirim-defterim-v1";
 const STORAGE_BACKUP_KEY = `${STORAGE_KEY}:backup`;
@@ -18,7 +20,7 @@ if (!ExpenseCore) throw new Error("Harcama takip motoru yüklenemedi.");
 const OfflineQueue = globalThis.PortfolioOfflineQueue;
 if (!OfflineQueue) throw new Error("Çevrimdışı işlem kuyruğu yüklenemedi.");
 const transactionOutbox = OfflineQueue.createOutbox({
-  storage: localStorage,
+  storage: demoLocalStorage,
   key: OFFLINE_TRANSACTION_QUEUE_KEY
 });
 const startupWarnings = [];
@@ -303,15 +305,15 @@ function migrateState(value) {
 function loadState() {
   let saved = null;
   try {
-    saved = localStorage.getItem(STORAGE_KEY);
+    saved = demoLocalStorage.getItem(STORAGE_KEY);
     let loaded;
     try {
       loaded = saved ? JSON.parse(saved) : createEmptyState();
     } catch (primaryError) {
-      const backup = localStorage.getItem(STORAGE_BACKUP_KEY);
+      const backup = demoLocalStorage.getItem(STORAGE_BACKUP_KEY);
       if (!backup) throw primaryError;
       loaded = JSON.parse(backup);
-      try { localStorage.setItem(STORAGE_RECOVERY_KEY, saved); } catch (_) {}
+      try { demoLocalStorage.setItem(STORAGE_RECOVERY_KEY, saved); } catch (_) {}
       startupWarnings.push("Ana veri kaydı bozuk olduğu için son sağlam yedek açıldı.");
     }
     loaded = migrateState(loaded);
@@ -340,7 +342,7 @@ function loadState() {
     return loaded;
   } catch (error) {
     if (saved) {
-      try { localStorage.setItem(STORAGE_RECOVERY_KEY, saved); } catch (_) {}
+      try { demoLocalStorage.setItem(STORAGE_RECOVERY_KEY, saved); } catch (_) {}
       startupWarnings.push("Yerel kayıt açılamadı; veri kurtarma kopyası korundu ve boş başlangıç verisi gösteriliyor.");
     }
     console.error("Yerel portföy verisi yüklenemedi:", error);
@@ -369,15 +371,15 @@ function saveState({ recordUndo = true } = {}) {
   let previous = null;
   let committed = false;
   try {
-    previous = localStorage.getItem(STORAGE_KEY);
+    previous = demoLocalStorage.getItem(STORAGE_KEY);
     state.schemaVersion = STATE_SCHEMA_VERSION;
     const serialized = JSON.stringify(state);
-    if (previous && previous !== serialized) localStorage.setItem(STORAGE_BACKUP_KEY, previous);
-    localStorage.setItem(STORAGE_KEY, serialized);
+    if (previous && previous !== serialized) demoLocalStorage.setItem(STORAGE_BACKUP_KEY, previous);
+    demoLocalStorage.setItem(STORAGE_KEY, serialized);
     committed = true;
     if (recordUndo && !cloudSync.applying && previous && previous !== serialized) {
       pendingUndo = { previous, after: serialized, createdAt: Date.now(), expiresAt: Date.now() + 12000 };
-      try { sessionStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(pendingUndo)); } catch (_) {}
+      try { demoSessionStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(pendingUndo)); } catch (_) {}
       const undoCandidate = pendingUndo;
       setTimeout(() => {
         if (pendingUndo === undoCandidate && !$("#toast")?.classList.contains("visible")) showToast("Değişiklik kaydedildi.");
@@ -413,7 +415,7 @@ function saveState({ recordUndo = true } = {}) {
     if (committed) { showToast("Cihaza kaydedildi; bulut eşitlemesi bekleniyor.", { undo: false }); return true; }
     try { state = migrateState(previous ? JSON.parse(previous) : createEmptyState()); } catch (_) {}
     pendingUndo = null;
-    try { sessionStorage.removeItem(UNDO_STORAGE_KEY); } catch (_) {}
+    try { demoSessionStorage.removeItem(UNDO_STORAGE_KEY); } catch (_) {}
     if (typeof showToast === "function") showToast("Veri kaydedilemedi. Tarayıcı depolama alanını kontrol edin.");
     return false;
   }
@@ -499,7 +501,7 @@ function hasMeaningfulCloudState(payload = cloudStatePayload()) {
 
 function persistCloudSyncMeta() {
   try {
-    localStorage.setItem(CLOUD_META_KEY, JSON.stringify({
+    demoLocalStorage.setItem(CLOUD_META_KEY, JSON.stringify({
       revision: cloudSync.revision,
       lastSyncedJson: cloudSync.lastSyncedJson,
       dirty: cloudSync.dirty === true
@@ -509,7 +511,7 @@ function persistCloudSyncMeta() {
 
 function restoreCloudSyncMeta() {
   try {
-    const saved = JSON.parse(localStorage.getItem(CLOUD_META_KEY) || "null");
+    const saved = JSON.parse(demoLocalStorage.getItem(CLOUD_META_KEY) || "null");
     if (!saved || typeof saved !== "object") return;
     cloudSync.revision = Number.isInteger(Number(saved.revision)) ? Math.max(0, Number(saved.revision)) : 0;
     cloudSync.lastSyncedJson = typeof saved.lastSyncedJson === "string" ? saved.lastSyncedJson : "";
@@ -646,7 +648,7 @@ async function resolveCloudConflict(choice) {
   pendingCloudConflict = null;
   $("#cloudConflictDialog")?.close();
   if (choice === "cloud") {
-    try { localStorage.setItem(STORAGE_RECOVERY_KEY, JSON.stringify(conflict.localState)); } catch (_) {}
+    try { demoLocalStorage.setItem(STORAGE_RECOVERY_KEY, JSON.stringify(conflict.localState)); } catch (_) {}
     applyCloudState(conflict.cloudState, conflict.revision);
     showToast("Bulut sürümü kullanıldı; önceki yerel durum kurtarma kopyasında saklandı.", { undo: false });
     return;
@@ -678,9 +680,9 @@ function applyCloudState(remoteState, revision) {
     state = migrateState({ ...state, ...remoteState, ...transient });
     state.schemaVersion = STATE_SCHEMA_VERSION;
     const serializedLocal = JSON.stringify(state);
-    const previous = localStorage.getItem(STORAGE_KEY);
-    if (previous && previous !== serializedLocal) localStorage.setItem(STORAGE_BACKUP_KEY, previous);
-    localStorage.setItem(STORAGE_KEY, serializedLocal);
+    const previous = demoLocalStorage.getItem(STORAGE_KEY);
+    if (previous && previous !== serializedLocal) demoLocalStorage.setItem(STORAGE_BACKUP_KEY, previous);
+    demoLocalStorage.setItem(STORAGE_KEY, serializedLocal);
     cloudSync.revision = Number(revision) || 0;
     cloudSync.lastSyncedJson = JSON.stringify(cloudStatePayload());
     cloudSync.dirty = false;
@@ -746,9 +748,9 @@ function reconcileStateAfterOfflineFlush(remoteState, baselineSerialized) {
     const transient = { prices: state.prices || {}, benchmarks: state.benchmarks || {} };
     state = migrateState({ ...state, ...merged, ...transient });
     const serializedLocal = JSON.stringify(state);
-    const previous = localStorage.getItem(STORAGE_KEY);
-    if (previous && previous !== serializedLocal) localStorage.setItem(STORAGE_BACKUP_KEY, previous);
-    localStorage.setItem(STORAGE_KEY, serializedLocal);
+    const previous = demoLocalStorage.getItem(STORAGE_KEY);
+    if (previous && previous !== serializedLocal) demoLocalStorage.setItem(STORAGE_BACKUP_KEY, previous);
+    demoLocalStorage.setItem(STORAGE_KEY, serializedLocal);
     render();
     renderClosedPositions();
     scheduleRefresh();
@@ -1251,7 +1253,7 @@ function renderSystemHealth(data = calculatePortfolio()) {
     ? new Date(latestQuoteAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
     : "zaman bilgisi yok";
   let backupReady = false;
-  try { backupReady = Boolean(localStorage.getItem(STORAGE_BACKUP_KEY)); } catch (_) { backupReady = false; }
+  try { backupReady = Boolean(demoLocalStorage.getItem(STORAGE_BACKUP_KEY)); } catch (_) { backupReady = false; }
   const snapshotCount = Core.selectPerformanceSnapshots(state).snapshots.length;
   const monthlyDaysRemaining = Math.max(0, 30 - snapshotCount);
   const ledgerLevel = integrityErrors.length || quarantinedCount ? "error" : "ok";
@@ -1366,8 +1368,8 @@ async function loadRuntimeHealth({ notify = false } = {}) {
   }
   try {
     const probeKey = `${STORAGE_KEY}:health-probe`;
-    localStorage.setItem(probeKey, "1");
-    localStorage.removeItem(probeKey);
+    demoLocalStorage.setItem(probeKey, "1");
+    demoLocalStorage.removeItem(probeKey);
     runtimeHealth.storageOk = true;
     runtimeHealth.storage = navigator.storage?.estimate ? await navigator.storage.estimate() : null;
   } catch (_) {
@@ -2780,7 +2782,7 @@ function calendarTrackedSymbols() {
 
 function loadAutomaticCalendarCache() {
   try {
-    const cached = JSON.parse(localStorage.getItem(AUTO_CALENDAR_CACHE_KEY) || "null");
+    const cached = JSON.parse(demoLocalStorage.getItem(AUTO_CALENDAR_CACHE_KEY) || "null");
     if (!cached || !Array.isArray(cached.events) || !Number.isFinite(Date.parse(cached.updatedAt))) return;
     automaticCalendarView.events = cached.events.filter(event => event && Core.isValidDate(String(event.date || "")) && event.type === "earnings" && !String(event.symbol || "").toUpperCase().endsWith(".IS"));
     automaticCalendarView.updatedAt = cached.updatedAt;
@@ -2886,7 +2888,7 @@ async function refreshAutomaticFinancialCalendar({ force = false } = {}) {
     automaticCalendarView.coverage = payload.coverage || null;
     focusCalendarOnFirstUpcoming(symbolKey);
     try {
-      localStorage.setItem(AUTO_CALENDAR_CACHE_KEY, JSON.stringify({
+      demoLocalStorage.setItem(AUTO_CALENDAR_CACHE_KEY, JSON.stringify({
         events: automaticCalendarView.events,
         warnings: automaticCalendarView.warnings,
         updatedAt: automaticCalendarView.updatedAt,
@@ -4652,7 +4654,7 @@ function deleteTechnicalAlert(id) {
 
 function getAiSettings() {
   try {
-    const raw = localStorage.getItem(AI_SETTINGS_KEY);
+    const raw = demoLocalStorage.getItem(AI_SETTINGS_KEY);
     return raw ? JSON.parse(raw) : { autoAnalyze: false, model: "" };
   } catch { return { autoAnalyze: false, model: "" }; }
 }
@@ -4882,8 +4884,8 @@ async function saveAiSettings() {
     $("#geminiApiKeyInput").value = "";
     $("#geminiApiKeyInput").placeholder = "Kayıtlı — değiştirmek için yeni anahtar girin";
   }
-  localStorage.removeItem(AI_KEY_STORAGE);
-  localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify({ autoAnalyze, model }));
+  demoLocalStorage.removeItem(AI_KEY_STORAGE);
+  demoLocalStorage.setItem(AI_SETTINGS_KEY, JSON.stringify({ autoAnalyze, model }));
   aiSecretStatus.loaded = false;
   await loadAiSettings();
   const status = $("#aiSettingsStatus");
@@ -4914,11 +4916,11 @@ async function syncGeminiKeyToServer(key) {
 
 async function migrateLegacyBrowserSecrets() {
   if (location.protocol === "file:") return;
-  const legacyGemini = localStorage.getItem(AI_KEY_STORAGE) || "";
-  const legacyToken = localStorage.getItem("tgToken") || "";
-  const legacyUserId = localStorage.getItem("tgUserId") || "";
+  const legacyGemini = demoLocalStorage.getItem(AI_KEY_STORAGE) || "";
+  const legacyToken = demoLocalStorage.getItem("tgToken") || "";
+  const legacyUserId = demoLocalStorage.getItem("tgUserId") || "";
   if (legacyGemini && await syncGeminiKeyToServer(legacyGemini)) {
-    localStorage.removeItem(AI_KEY_STORAGE);
+    demoLocalStorage.removeItem(AI_KEY_STORAGE);
   }
   if (legacyToken || legacyUserId) {
     try {
@@ -4928,8 +4930,8 @@ async function migrateLegacyBrowserSecrets() {
         body: JSON.stringify({ token: legacyToken, userId: legacyUserId })
       });
       if (response.ok) {
-        localStorage.removeItem("tgToken");
-        localStorage.removeItem("tgUserId");
+        demoLocalStorage.removeItem("tgToken");
+        demoLocalStorage.removeItem("tgUserId");
       }
     } catch (_) {}
   }
@@ -5001,8 +5003,8 @@ async function saveTelegramSettings() {
         setTimeout(() => { if (status) status.textContent = ""; }, payload.recoveredPreviousConfig ? 9000 : 4000);
       }
       showToast(payload.recoveredPreviousConfig ? "Şifreli ayarlar onarıldı; Telegram kaydedildi." : "Telegram bot ayarları kaydedildi.");
-      localStorage.removeItem("tgToken");
-      localStorage.removeItem("tgUserId");
+      demoLocalStorage.removeItem("tgToken");
+      demoLocalStorage.removeItem("tgUserId");
       if ($("#tgBotTokenInput")) $("#tgBotTokenInput").value = "";
       loadTelegramSettings();
     } else {
@@ -6162,7 +6164,7 @@ async function refreshQuotes({ quiet = false } = {}) {
 function loadPendingUndo() {
   if (pendingUndo?.expiresAt > Date.now()) return pendingUndo;
   try {
-    const saved = JSON.parse(sessionStorage.getItem(UNDO_STORAGE_KEY) || "null");
+    const saved = JSON.parse(demoSessionStorage.getItem(UNDO_STORAGE_KEY) || "null");
     pendingUndo = saved?.expiresAt > Date.now() ? saved : null;
   } catch (_) { pendingUndo = null; }
   return pendingUndo;
@@ -6176,7 +6178,7 @@ function undoLastChange() {
     return;
   }
   pendingUndo = null;
-  try { sessionStorage.removeItem(UNDO_STORAGE_KEY); } catch (_) {}
+  try { demoSessionStorage.removeItem(UNDO_STORAGE_KEY); } catch (_) {}
   state = migrateState(JSON.parse(undo.previous));
   document.documentElement.setAttribute("data-theme", state.settings.theme);
   if (!saveState({ recordUndo: false })) return;
@@ -6651,13 +6653,13 @@ function setSidebarCollapsed(collapsed, { persist = true } = {}) {
   if (icon) icon.textContent = active ? "☰" : "←";
 
   if (persist) {
-    try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch (_) {}
+    try { demoLocalStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch (_) {}
   }
 }
 
 function initializeSidebarToggle() {
   const readPreference = () => {
-    try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1"; }
+    try { return demoLocalStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1"; }
     catch (_) { return document.documentElement.classList.contains("sidebar-collapsed"); }
   };
   const media = window.matchMedia("(max-width: 780px)");

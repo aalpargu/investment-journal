@@ -1,4 +1,4 @@
-const CACHE_NAME = "yatirim-defterim-v14.20";
+const CACHE_NAME = "investment-demo-v1";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -6,7 +6,8 @@ const ASSETS_TO_CACHE = [
   "./portfolio_core.js?v=14.20",
   "./offline-queue.js?v=13.6",
   "./expense-core-v14.17.js?v=14.18",
-  "./app-v14.17.js?v=14.20",
+  "./app-v14.17.js?v=demo-1",
+  "./demo-bootstrap.js?v=1",
   "./manifest.json",
   "./icons/icon.svg",
   "./icons/icon-192.png",

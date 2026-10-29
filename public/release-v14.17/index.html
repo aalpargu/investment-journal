@@ -15,13 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Yatırım Defterim" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <script>
-    try {
-      if (localStorage.getItem("yatirim-defterim-v1:sidebar-collapsed") === "1") {
-        document.documentElement.classList.add("sidebar-collapsed");
-      }
-    } catch (_) {}
-  </script>
+
   
   <title>Yatırım Defterim</title>
   <link rel="stylesheet" href="styles-v14.17.css" />
@@ -56,7 +50,7 @@
       </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content"><p class="demo-integration-note" role="note">Örnek ortam: AI ile görsel okuma ve Telegram bağlantıları henüz yapılandırılmadı. Diğer ekranları örnek kayıtlarla deneyebilirsin.</p>
       <header class="topbar">
         <div class="topbar-heading">
           <button class="button secondary sidebar-toggle" id="sidebarToggle" type="button" aria-controls="appSidebar" aria-expanded="true" aria-label="Kenar çubuğunu gizle" title="Kenar çubuğunu gizle">
@@ -730,45 +724,45 @@
             <p id="marketLastSuccessfulAt" class="market-last-success">Henüz başarılı fiyat alımı yok</p>
             <p class="settings-help">Web fiyat hizmeti TradingView Scanner verisini, gerektiğinde Yahoo Finance yedeğini kullanır. Sonuçlar sağlayıcıya göre gecikmeli olabilir.</p>
           </section>
-          <section class="panel ai-settings-panel"><div class="panel-header"><div><h2>✦ Yapay Zekâ (Gemini)</h2><p>Teknik analiz ekranında AI yorumu için Gemini API anahtarını gir.</p></div></div>
+          <section class="panel ai-settings-panel"><div class="panel-header"><div><h2>✦ Yapay Zekâ (Gemini)</h2><p>Demo ortamında AI bağlantısı henüz yapılandırılmadı; daha sonra eklenecek.</p></div></div>
             <label>Gemini API Anahtarı
               <div class="api-key-input-wrap">
-                <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." />
+                <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." / disabled title="Demo bağlantısı daha sonra eklenecek">
                 <button type="button" class="api-key-toggle" id="toggleApiKeyVisibility" aria-label="Anahtarı göster veya gizle"><span aria-hidden="true">◉</span></button>
               </div>
             </label>
             <label>Kullanılacak Model
-              <select id="geminiModelSelect">
+              <select id="geminiModelSelect" disabled title="Demo bağlantısı daha sonra eklenecek">
                 <option value="" disabled selected>Model listesi yükleniyor...</option>
               </select>
             </label>
             <div class="ai-safety-note">ℹ️ Kullanım kotası ve ücretlendirme seçilen modele ve Google hesabınızın planına bağlıdır. Güncel koşulları Google AI Studio'dan kontrol edin.</div>
             <p class="settings-help">Anahtar bulut veritabanına yazılmadan önce sunucuda şifrelenir; tarayıcı deposunda veya portföy yedeğinde tutulmaz. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="settings-link">Google AI Studio'dan anahtar al →</a></p>
-            <label class="ai-auto-label"><input type="checkbox" id="aiAutoAnalyze" /> Hisse açıldığında AI yorumunu otomatik çalıştır</label>
-            <button id="saveAiSettingsButton" class="button primary" type="button" style="margin-top:6px">AI ayarlarını kaydet</button>
+            <label class="ai-auto-label"><input type="checkbox" id="aiAutoAnalyze" / disabled title="Demo bağlantısı daha sonra eklenecek"> Hisse açıldığında AI yorumunu otomatik çalıştır</label>
+            <button id="saveAiSettingsButton" class="button primary" type="button" style="margin-top:6px" disabled title="Demo bağlantısı daha sonra eklenecek">AI ayarlarını kaydet</button>
             <div id="aiSettingsStatus" class="ai-settings-status"></div>
           </section>
           <section class="panel tg-settings-panel">
             <div class="panel-header">
               <div>
                 <h2>Telegram Bot Entegrasyonu</h2>
-                <p>Telefondan Midas ekran görüntüsü atınca işlemler otomatik portföye aktarılır.</p>
+                <p>Demo ortamında Telegram bağlantısı henüz yapılandırılmadı; daha sonra eklenecek.</p>
               </div>
               <span id="tgBotStatusBadge" class="status-badge" style="display:none"></span>
             </div>
             <label>Telegram Bot Token
               <div class="api-key-input-wrap">
-                <input id="tgBotTokenInput" type="password" autocomplete="off" placeholder="1234567890:ABC..." />
+                <input id="tgBotTokenInput" type="password" autocomplete="off" placeholder="1234567890:ABC..." / disabled title="Demo bağlantısı daha sonra eklenecek">
                 <button type="button" class="api-key-toggle" id="toggleTgTokenVisibility" aria-label="Tokenı göster veya gizle"><span aria-hidden="true">◉</span></button>
               </div>
             </label>
             <label>Telegram Kullanıcı ID
-              <input id="tgUserIdInput" type="text" autocomplete="off" placeholder="6723898498" />
+              <input id="tgUserIdInput" type="text" autocomplete="off" placeholder="6723898498" / disabled title="Demo bağlantısı daha sonra eklenecek">
             </label>
             <p class="settings-help">
-              Telegram'da <strong>@yatirim_defterim_bot</strong> botuna ekran görüntüsü atın, uygulama açıkken onay banner'ı gelecektir.
+              Demo için ayrı bot daha sonra bağlanacak. Şimdilik işlemleri elle ekleyebilir veya dosyadan içe aktarabilirsin.
             </p>
-            <button id="saveTgSettingsButton" class="button primary" type="button" style="margin-top:6px">Telegram ayarlarını kaydet</button>
+            <button id="saveTgSettingsButton" class="button primary" type="button" style="margin-top:6px" disabled title="Demo bağlantısı daha sonra eklenecek">Telegram ayarlarını kaydet</button>
             <div id="tgSettingsStatus" class="ai-settings-status"></div>
           </section>
           <section class="panel danger-panel"><div class="panel-header"><div><h2>Veri yönetimi</h2><p>İşlemler bu tarayıcıda saklanır.</p></div></div>
@@ -1375,6 +1369,6 @@
 <script src="portfolio_core.js?v=14.20"></script>
 <script src="offline-queue.js?v=13.6"></script>
 <script src="expense-core-v14.17.js?v=14.18"></script>
-<script src="app-v14.17.js?v=14.20"></script>
+<script src="demo-bootstrap.js?v=1"></script>
 </body>
 </html>
