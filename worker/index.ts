@@ -273,14 +273,14 @@ export default {
     }
 
     const oldReleaseEntry = url.pathname.match(/^\/release-v([^/]+)(?:\/(?:index\.html)?)?$/);
-    if (request.method === 'GET' && oldReleaseEntry && oldReleaseEntry[1] !== '14.17') {
+    if (request.method === 'GET' && oldReleaseEntry && oldReleaseEntry[1] !== '15.0') {
       const currentUrl = new URL('/', url);
-      currentUrl.searchParams.set('release', '14.17');
+      currentUrl.searchParams.set('release', '15.0');
       return Response.redirect(currentUrl, 302);
     }
 
     if (request.method === 'GET' && url.pathname === '/api/release') {
-      return Response.json({ version: '14.17', releasePath: '/release-v14.17/index.html' }, {
+      return Response.json({ version: '15.0', releasePath: '/release-v15.0/index.html' }, {
         headers: { 'Cache-Control': 'no-store' },
       });
     }

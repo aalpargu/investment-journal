@@ -28,7 +28,7 @@ export default async function Home() {
     <main className="app-frame-shell">
       <iframe
         className="app-frame"
-        src="/release-v14.17/index.html"
+        src="/release-v15.0/index.html"
         title="Yatırım Defterim"
       />
     </main>
